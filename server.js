@@ -23,6 +23,12 @@ let gameState = {
         shotStats: {
             made: { two: 0, three: 0 },
             missed: { two: 0, three: 0 }
+        },
+        stats: {
+            rebounds: 0,
+            blocks: 0,
+            steals: 0,
+            turnovers: 0
         }
     },
     team2: {
@@ -33,6 +39,12 @@ let gameState = {
         shotStats: {
             made: { two: 0, three: 0 },
             missed: { two: 0, three: 0 }
+        },
+        stats: {
+            rebounds: 0,
+            blocks: 0,
+            steals: 0,
+            turnovers: 0
         }
     },
     gameTime: "00:00",
@@ -106,6 +118,46 @@ app.post('/api/substitute', (req, res) => {
         }
     }
     
+    io.emit('gameState', gameState);
+    res.json(gameState);
+});
+
+app.post('/api/recordRebound', (req, res) => {
+    const { team, player } = req.body;
+    const teamKey = team === 'home' ? 'team1' : 'team2';
+
+    // Update team stats
+    gameState[teamKey].stats.rebounds++;
+
+    // Update player stats
+    const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
+    if (playerIndex >= 0) {
+        if (!gameState[teamKey].players[playerIndex].rebounds) {
+            gameState[teamKey].players[playerIndex].rebounds = 0;
+        }
+        gameState[teamKey].players[playerIndex].rebounds++;
+    }
+
+    io.emit('gameState', gameState);
+    res.json(gameState);
+});
+
+app.post('/api/recordEvent', (req, res) => {
+    const { eventType, team, player } = req.body;
+    const teamKey = team === 'home' ? 'team1' : 'team2';
+
+    // Update team stats
+    gameState[teamKey].stats[eventType + 's']++;
+
+    // Update player stats
+    const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
+    if (playerIndex >= 0) {
+        if (!gameState[teamKey].players[playerIndex][eventType + 's']) {
+            gameState[teamKey].players[playerIndex][eventType + 's'] = 0;
+        }
+        gameState[teamKey].players[playerIndex][eventType + 's']++;
+    }
+
     io.emit('gameState', gameState);
     res.json(gameState);
 });

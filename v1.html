@@ -220,6 +220,15 @@
             <div class="court-zone" id="away-three">3</div>
         </div>
 
+        <!-- Game Event Buttons -->
+        <div class="game-events position-fixed" style="left: 20px; top: 50%; transform: translateY(-50%);">
+            <div class="d-flex flex-column gap-2">
+                <button class="btn btn-warning" onclick="showEventDialog('block')">Block</button>
+                <button class="btn btn-info" onclick="showEventDialog('steal')">Steal</button>
+                <button class="btn btn-danger" onclick="showEventDialog('turnover')">Turnover</button>
+            </div>
+        </div>
+
         <!-- Shot Dialog -->
         <div class="overlay" id="overlay"></div>
         <div class="shot-dialog" id="shot-dialog">
@@ -235,6 +244,32 @@
                 <button type="button" class="btn btn-danger" onclick="recordShot(false)">Miss</button>
             </div>
             <button type="button" class="btn btn-secondary mt-2 w-100" onclick="closeDialog()">Cancel</button>
+        </div>
+
+        <!-- Rebound Dialog -->
+        <div class="dialog" id="rebound-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+            <h4>Rebound</h4>
+            <div class="btn-group w-100 mb-3">
+                <button class="btn btn-primary" onclick="selectReboundType('offense')">Offense</button>
+                <button class="btn btn-primary" onclick="selectReboundType('defense')">Defense</button>
+            </div>
+            <div id="rebound-players" class="d-grid gap-2 mb-3">
+                <!-- Players will be added dynamically -->
+            </div>
+            <button type="button" class="btn btn-secondary w-100" onclick="closeReboundDialog()">Cancel</button>
+        </div>
+
+        <!-- Event Dialog -->
+        <div class="dialog" id="event-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+            <h4 id="event-title">Event</h4>
+            <div class="btn-group w-100 mb-3">
+                <button class="btn btn-primary" onclick="selectEventTeam('home')">Home</button>
+                <button class="btn btn-primary" onclick="selectEventTeam('away')">Away</button>
+            </div>
+            <div id="event-players" class="d-grid gap-2 mb-3">
+                <!-- Players will be added dynamically -->
+            </div>
+            <button type="button" class="btn btn-secondary w-100" onclick="closeEventDialog()">Cancel</button>
         </div>
 
         <!-- Navigation Tabs -->
@@ -253,7 +288,97 @@
             </li>
         </ul>
 
-        <!-- Player Stats Table -->
+        <!-- Team Stats Summary -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Home Team Stats</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center" id="home-team-stats">
+                            <div class="col-3 mb-3">
+                                <div class="h3" id="home-2pt-stats">0/0</div>
+                                <small>2PT</small>
+                            </div>
+                            <div class="col-3 mb-3">
+                                <div class="h3" id="home-3pt-stats">0/0</div>
+                                <small>3PT</small>
+                            </div>
+                            <div class="col-3 mb-3">
+                                <div class="h3" id="home-reb-stats">0</div>
+                                <small>REB</small>
+                            </div>
+                            <div class="col-3 mb-3">
+                                <div class="h3" id="home-stl-stats">0</div>
+                                <small>STL</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="h3" id="home-blk-stats">0</div>
+                                <small>BLK</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="h3" id="home-to-stats">0</div>
+                                <small>TO</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="h3" id="home-fg-stats">0%</div>
+                                <small>FG%</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="h3" id="home-3p-stats">0%</div>
+                                <small>3P%</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Away Team Stats</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center" id="away-team-stats">
+                            <div class="col-3 mb-3">
+                                <div class="h3" id="away-2pt-stats">0/0</div>
+                                <small>2PT</small>
+                            </div>
+                            <div class="col-3 mb-3">
+                                <div class="h3" id="away-3pt-stats">0/0</div>
+                                <small>3PT</small>
+                            </div>
+                            <div class="col-3 mb-3">
+                                <div class="h3" id="away-reb-stats">0</div>
+                                <small>REB</small>
+                            </div>
+                            <div class="col-3 mb-3">
+                                <div class="h3" id="away-stl-stats">0</div>
+                                <small>STL</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="h3" id="away-blk-stats">0</div>
+                                <small>BLK</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="h3" id="away-to-stats">0</div>
+                                <small>TO</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="h3" id="away-fg-stats">0%</div>
+                                <small>FG%</small>
+                            </div>
+                            <div class="col-3">
+                                <div class="h3" id="away-3p-stats">0%</div>
+                                <small>3P%</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Player Stats Tables -->
         <div class="table-responsive">
             <div class="row">
                 <div class="col-md-6">
@@ -264,6 +389,10 @@
                                 <th>No.</th>
                                 <th>Player</th>
                                 <th>PTS</th>
+                                <th>REB</th>
+                                <th>STL</th>
+                                <th>BLK</th>
+                                <th>TO</th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
@@ -281,6 +410,10 @@
                                 <th>No.</th>
                                 <th>Player</th>
                                 <th>PTS</th>
+                                <th>REB</th>
+                                <th>STL</th>
+                                <th>BLK</th>
+                                <th>TO</th>
                                 <th>Status</th>
                                 <th>Action</th>
                             </tr>
@@ -491,21 +624,28 @@
             slot.addEventListener('click', () => handlePlayerSlotClick(slot));
         });
 
+        // Global game state
+        let gameState = null;
+
         // Socket event listeners
         socket.on('gameState', (state) => {
+            gameState = state;
             updateScoreboard(state);
             updateActivePlayers(state);
         });
 
         socket.on('scoreUpdate', (state) => {
+            gameState = state;
             updateScoreboard(state);
         });
 
         socket.on('timeUpdate', (state) => {
+            gameState = state;
             updateScoreboard(state);
         });
 
         socket.on('playerUpdate', (state) => {
+            gameState = state;
             updateScoreboard(state);
             updateActivePlayers(state);
         });
@@ -520,6 +660,41 @@
             updatePlayerStats('home', state.team1.players, state.team1.activePlayers);
             updatePlayerStats('away', state.team2.players, state.team2.activePlayers);
             updateActivePlayers(state);
+
+            // Update team stats
+            updateTeamStats('home', state.team1);
+            updateTeamStats('away', state.team2);
+        }
+
+        function updateTeamStats(team, teamState) {
+            // Update shooting stats
+            const twoPointStats = `${teamState.shotStats.made.two}/${teamState.shotStats.made.two + teamState.shotStats.missed.two}`;
+            const threePointStats = `${teamState.shotStats.made.three}/${teamState.shotStats.made.three + teamState.shotStats.missed.three}`;
+            
+            // Calculate percentages
+            const fgPercentage = calculatePercentage(
+                teamState.shotStats.made.two + teamState.shotStats.made.three,
+                teamState.shotStats.made.two + teamState.shotStats.missed.two + teamState.shotStats.made.three + teamState.shotStats.missed.three
+            );
+            const threePtPercentage = calculatePercentage(
+                teamState.shotStats.made.three,
+                teamState.shotStats.made.three + teamState.shotStats.missed.three
+            );
+
+            // Update DOM elements
+            document.getElementById(`${team}-2pt-stats`).textContent = twoPointStats;
+            document.getElementById(`${team}-3pt-stats`).textContent = threePointStats;
+            document.getElementById(`${team}-reb-stats`).textContent = teamState.stats.rebounds || 0;
+            document.getElementById(`${team}-stl-stats`).textContent = teamState.stats.steals || 0;
+            document.getElementById(`${team}-blk-stats`).textContent = teamState.stats.blocks || 0;
+            document.getElementById(`${team}-to-stats`).textContent = teamState.stats.turnovers || 0;
+            document.getElementById(`${team}-fg-stats`).textContent = fgPercentage + '%';
+            document.getElementById(`${team}-3p-stats`).textContent = threePtPercentage + '%';
+        }
+
+        function calculatePercentage(made, total) {
+            if (total === 0) return 0;
+            return Math.round((made / total) * 100);
         }
 
         function updatePlayerStats(team, players, activePlayers) {
@@ -550,7 +725,11 @@
             row.innerHTML = `
                 <td>${player.number}</td>
                 <td>${player.name}</td>
-                <td>${player.points}</td>
+                <td>${player.points || 0}</td>
+                <td>${player.rebounds || 0}</td>
+                <td>${player.steals || 0}</td>
+                <td>${player.blocks || 0}</td>
+                <td>${player.turnovers || 0}</td>
                 <td>${isActive ? '<span class="badge bg-success">On Court</span>' : '<span class="badge bg-secondary">Bench</span>'}</td>
                 <td>
                     ${isActive ? 
@@ -625,6 +804,9 @@
             currentShotInfo = { team: null, zone: null, player: null };
         }
 
+        let currentEventType = null;
+        let currentEventTeam = null;
+
         function recordShot(made) {
             const points = currentShotInfo.zone.includes('three') ? 3 : 2;
             
@@ -643,6 +825,129 @@
             });
 
             closeDialog();
+            
+            if (!made) {
+                // Show rebound dialog for missed shots
+                showReboundDialog();
+            }
+        }
+
+        function showReboundDialog() {
+            document.getElementById('rebound-dialog').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function closeReboundDialog() {
+            document.getElementById('rebound-dialog').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        function selectReboundType(type) {
+            if (!gameState) {
+                alert('Game state not initialized');
+                return;
+            }
+
+            const reboundTeam = type === 'offense' ? currentShotInfo.team : (currentShotInfo.team === 'home' ? 'away' : 'home');
+            const players = document.getElementById('rebound-players');
+            players.innerHTML = '';
+            
+            // Get active players for the selected team
+            const teamKey = reboundTeam === 'home' ? 'team1' : 'team2';
+            const teamState = gameState[teamKey];
+            
+            if (!teamState || !teamState.activePlayers) {
+                alert('No active players found');
+                return;
+            }
+            
+            teamState.activePlayers.forEach(playerNumber => {
+                if (playerNumber) {
+                    const player = teamState.players.find(p => p.number === playerNumber);
+                    if (player) {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-outline-primary';
+                        btn.textContent = `#${player.number} ${player.name}`;
+                        btn.onclick = () => recordRebound(reboundTeam, player.number);
+                        players.appendChild(btn);
+                    }
+                }
+            });
+        }
+
+        function recordRebound(team, playerNumber) {
+            fetch('/api/recordRebound', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    team: team,
+                    player: playerNumber
+                }),
+            });
+            closeReboundDialog();
+        }
+
+        function showEventDialog(eventType) {
+            currentEventType = eventType;
+            document.getElementById('event-title').textContent = eventType.charAt(0).toUpperCase() + eventType.slice(1);
+            document.getElementById('event-dialog').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function closeEventDialog() {
+            document.getElementById('event-dialog').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+            currentEventType = null;
+            currentEventTeam = null;
+        }
+
+        function selectEventTeam(team) {
+            if (!gameState) {
+                alert('Game state not initialized');
+                return;
+            }
+
+            currentEventTeam = team;
+            const players = document.getElementById('event-players');
+            players.innerHTML = '';
+            
+            const teamKey = team === 'home' ? 'team1' : 'team2';
+            const teamState = gameState[teamKey];
+            
+            if (!teamState || !teamState.activePlayers) {
+                alert('No active players found');
+                return;
+            }
+            
+            teamState.activePlayers.forEach(playerNumber => {
+                if (playerNumber) {
+                    const player = teamState.players.find(p => p.number === playerNumber);
+                    if (player) {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-outline-primary';
+                        btn.textContent = `#${player.number} ${player.name}`;
+                        btn.onclick = () => recordEvent(currentEventType, team, player.number);
+                        players.appendChild(btn);
+                    }
+                }
+            });
+        }
+
+        function recordEvent(eventType, team, playerNumber) {
+            fetch('/api/recordEvent', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    eventType: eventType,
+                    team: team,
+                    player: playerNumber
+                }),
+            });
+            closeEventDialog();
         }
 
         function getZoneDescription(zoneId) {
