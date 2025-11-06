@@ -32,6 +32,91 @@
             background-color: #2c3e50;
             color: white;
         }
+        .court-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+        .court-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .court-zone {
+            position: absolute;
+            cursor: pointer;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: background-color 0.3s;
+            top: 10%;
+            height: 80%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+        }
+        .court-zone:hover {
+            background-color: rgba(255, 255, 255, 0.4);
+        }
+        #home-two {
+            left: 2%;
+            width: 28%;
+        }
+        #home-three {
+            left: 30%;
+            width: 18%;
+        }
+        #away-three {
+            left: 52%;
+            width: 18%;
+        }
+        #away-two {
+            left: 70%;
+            width: 28%;
+        }
+        .active-players {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .player-slot {
+            width: 60px;
+            height: 60px;
+            border: 2px solid #ddd;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 5px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            background-color: white;
+        }
+        .shot-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+        }
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            z-index: 999;
+        }
     </style>
 </head>
 <body>
@@ -40,16 +125,116 @@
         <div class="row align-items-center bg-light p-3 border border-3 rounded mb-4">
             <div class="col text-center">
                 <h3>Team 1</h3>
-                <div class="score">0</div>
+                <div id="team1-score" class="score">0</div>
             </div>
             <div class="col text-center">
-                <div class="game-time mb-2">2ND HALF</div>
-                <div class="game-time">00:00</div>
+                <div id="period" class="game-time mb-2">2ND HALF</div>
+                <div id="game-time" class="game-time">00:00</div>
             </div>
             <div class="col text-center">
                 <h3>Team 2</h3>
-                <div class="score">0</div>
+                <div id="team2-score" class="score">0</div>
             </div>
+        </div>
+
+        <!-- Roster Management -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Home Team Roster</h5>
+                        <select id="home-saved-rosters" class="form-select" style="width: auto;">
+                            <option value="">Select Saved Roster</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <input type="text" id="home-team-name" class="form-control mb-2" placeholder="Enter team name">
+                            <textarea id="home-roster" class="form-control" rows="5" placeholder="Enter roster (one player per line)&#10;Format: number lastname&#10;Example:&#10;23 James&#10;34 Durant"></textarea>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="loadRoster('home')">Load Roster</button>
+                            <button class="btn btn-success" onclick="saveRoster('home')">Save Roster</button>
+                            <button class="btn btn-danger" onclick="deleteRoster('home')">Delete Saved</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Away Team Roster</h5>
+                        <select id="away-saved-rosters" class="form-select" style="width: auto;">
+                            <option value="">Select Saved Roster</option>
+                        </select>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <input type="text" id="away-team-name" class="form-control mb-2" placeholder="Enter team name">
+                            <textarea id="away-roster" class="form-control" rows="5" placeholder="Enter roster (one player per line)&#10;Format: number lastname&#10;Example:&#10;23 James&#10;34 Durant"></textarea>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-primary" onclick="loadRoster('away')">Load Roster</button>
+                            <button class="btn btn-success" onclick="saveRoster('away')">Save Roster</button>
+                            <button class="btn btn-danger" onclick="deleteRoster('away')">Delete Saved</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Active Players -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="active-players">
+                    <h4>Home Team On Court</h4>
+                    <div id="home-active-players">
+                        <div class="player-slot" data-team="home" data-index="0">-</div>
+                        <div class="player-slot" data-team="home" data-index="1">-</div>
+                        <div class="player-slot" data-team="home" data-index="2">-</div>
+                        <div class="player-slot" data-team="home" data-index="3">-</div>
+                        <div class="player-slot" data-team="home" data-index="4">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="active-players">
+                    <h4>Away Team On Court</h4>
+                    <div id="away-active-players">
+                        <div class="player-slot" data-team="away" data-index="0">-</div>
+                        <div class="player-slot" data-team="away" data-index="1">-</div>
+                        <div class="player-slot" data-team="away" data-index="2">-</div>
+                        <div class="player-slot" data-team="away" data-index="3">-</div>
+                        <div class="player-slot" data-team="away" data-index="4">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Basketball Court -->
+        <div class="court-container">
+            <img src="court.png" alt="Basketball Court" class="court-image">
+            <div class="court-zone" id="home-three">3</div>
+            <div class="court-zone" id="home-two">2</div>
+            <div class="court-zone" id="away-two">2</div>
+            <div class="court-zone" id="away-three">3</div>
+        </div>
+
+        <!-- Shot Dialog -->
+        <div class="overlay" id="overlay"></div>
+        <div class="shot-dialog" id="shot-dialog">
+            <h4>Shot Attempt</h4>
+            <div class="mb-3">
+                <label>Player: <span id="selected-player"></span></label>
+            </div>
+            <div class="mb-3">
+                <label>Zone: <span id="selected-zone"></span></label>
+            </div>
+            <div class="btn-group w-100" role="group">
+                <button type="button" class="btn btn-success" onclick="recordShot(true)">Make</button>
+                <button type="button" class="btn btn-danger" onclick="recordShot(false)">Miss</button>
+            </div>
+            <button type="button" class="btn btn-secondary mt-2 w-100" onclick="closeDialog()">Cancel</button>
         </div>
 
         <!-- Navigation Tabs -->
@@ -70,23 +255,42 @@
 
         <!-- Player Stats Table -->
         <div class="table-responsive">
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>No.</th>
-                        <th>Player</th>
-                        <th>PTS</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>1</td>
-                        <td>Player Name</td>
-                        <td>0</td>
-                    </tr>
-                    <!-- Add more rows as needed -->
-                </tbody>
-            </table>
+            <div class="row">
+                <div class="col-md-6">
+                    <h4>Home Team</h4>
+                    <table class="table table-striped" id="home-players-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Player</th>
+                                <th>PTS</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Home team players will be added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <h4>Away Team</h4>
+                    <table class="table table-striped" id="away-players-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th>
+                                <th>Player</th>
+                                <th>PTS</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Away team players will be added dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- Game Details -->
@@ -101,6 +305,161 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Connect to WebSocket server
+        
+        // Roster management functions
+        function initializeRosterManagement() {
+            // Load saved rosters into dropdowns
+            updateSavedRosters('home');
+            updateSavedRosters('away');
+
+            // Add change listeners to dropdowns
+            document.getElementById('home-saved-rosters').addEventListener('change', function() {
+                loadSavedRoster('home', this.value);
+            });
+            document.getElementById('away-saved-rosters').addEventListener('change', function() {
+                loadSavedRoster('away', this.value);
+            });
+        }
+
+        function updateSavedRosters(team) {
+            const savedRosters = JSON.parse(localStorage.getItem(`${team}Rosters`) || '{}');
+            const select = document.getElementById(`${team}-saved-rosters`);
+            
+            // Clear existing options except the first one
+            select.innerHTML = '<option value="">Select Saved Roster</option>';
+            
+            // Add saved rosters to dropdown
+            Object.keys(savedRosters).forEach(teamName => {
+                const option = document.createElement('option');
+                option.value = teamName;
+                option.textContent = teamName;
+                select.appendChild(option);
+            });
+        }
+
+        function saveRoster(team) {
+            const teamName = document.getElementById(`${team}-team-name`).value.trim();
+            const rosterText = document.getElementById(`${team}-roster`).value.trim();
+            
+            if (!teamName) {
+                alert('Please enter a team name');
+                return;
+            }
+            
+            if (!rosterText) {
+                alert('Please enter a roster');
+                return;
+            }
+
+            const players = parseRoster(rosterText);
+            if (players.length === 0) {
+                alert('Please enter a valid roster');
+                return;
+            }
+
+            // Save to localStorage
+            const savedRosters = JSON.parse(localStorage.getItem(`${team}Rosters`) || '{}');
+            savedRosters[teamName] = {
+                name: teamName,
+                players: players,
+                rosterText: rosterText
+            };
+            localStorage.setItem(`${team}Rosters`, JSON.stringify(savedRosters));
+
+            // Update dropdown
+            updateSavedRosters(team);
+            alert(`Roster saved as "${teamName}"`);
+        }
+
+        function loadSavedRoster(team, teamName) {
+            if (!teamName) return;
+
+            const savedRosters = JSON.parse(localStorage.getItem(`${team}Rosters`) || '{}');
+            const savedRoster = savedRosters[teamName];
+            
+            if (savedRoster) {
+                document.getElementById(`${team}-team-name`).value = savedRoster.name;
+                document.getElementById(`${team}-roster`).value = savedRoster.rosterText;
+                loadRoster(team);
+            }
+        }
+
+        function deleteRoster(team) {
+            const select = document.getElementById(`${team}-saved-rosters`);
+            const teamName = select.value;
+            
+            if (!teamName) {
+                alert('Please select a roster to delete');
+                return;
+            }
+
+            if (confirm(`Are you sure you want to delete the roster for "${teamName}"?`)) {
+                const savedRosters = JSON.parse(localStorage.getItem(`${team}Rosters`) || '{}');
+                delete savedRosters[teamName];
+                localStorage.setItem(`${team}Rosters`, JSON.stringify(savedRosters));
+                
+                // Update dropdown
+                updateSavedRosters(team);
+                alert(`Roster "${teamName}" deleted`);
+            }
+        }
+
+        function loadRoster(team) {
+            const textarea = document.getElementById(`${team}-roster`);
+            const rosterText = textarea.value;
+            const players = parseRoster(rosterText);
+            
+            if (players.length === 0) {
+                alert('Please enter a valid roster. Each line should contain a number and a last name.');
+                return;
+            }
+
+            fetch('/api/loadRoster', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    team: team,
+                    players: players
+                }),
+            })
+            .then(response => response.json())
+            .then(state => {
+                updateScoreboard(state);
+                alert(`${team.charAt(0).toUpperCase() + team.slice(1)} team roster loaded successfully!`);
+            })
+            .catch(error => {
+                alert('Error loading roster. Please try again.');
+                console.error('Error:', error);
+            });
+        }
+
+        function parseRoster(rosterText) {
+            const players = [];
+            const lines = rosterText.split('\n');
+            
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed) {
+                    const match = trimmed.match(/^(\d+)\s+(.+)$/);
+                    if (match) {
+                        players.push({
+                            number: match[1],
+                            name: match[2],
+                            points: 0,
+                            attempts: 0,
+                            made: 0
+                        });
+                    }
+                }
+            }
+            
+            return players;
+        }
+
+        // Initialize roster management when page loads
+        document.addEventListener('DOMContentLoaded', initializeRosterManagement);
         const socket = io();
 
         // DOM elements
@@ -109,10 +468,33 @@
         const gameTime = document.querySelector('#game-time');
         const period = document.querySelector('#period');
         const playerTable = document.querySelector('#player-table tbody');
+        const overlay = document.getElementById('overlay');
+        const shotDialog = document.getElementById('shot-dialog');
+        const selectedPlayer = document.getElementById('selected-player');
+        const selectedZone = document.getElementById('selected-zone');
+
+        let currentShotInfo = {
+            team: null,
+            zone: null,
+            player: null
+        };
+
+        // Initialize court zones
+        const courtZones = document.querySelectorAll('.court-zone');
+        courtZones.forEach(zone => {
+            zone.addEventListener('click', () => handleZoneClick(zone.id));
+        });
+
+        // Initialize player slots
+        const playerSlots = document.querySelectorAll('.player-slot');
+        playerSlots.forEach(slot => {
+            slot.addEventListener('click', () => handlePlayerSlotClick(slot));
+        });
 
         // Socket event listeners
         socket.on('gameState', (state) => {
             updateScoreboard(state);
+            updateActivePlayers(state);
         });
 
         socket.on('scoreUpdate', (state) => {
@@ -125,6 +507,7 @@
 
         socket.on('playerUpdate', (state) => {
             updateScoreboard(state);
+            updateActivePlayers(state);
         });
 
         function updateScoreboard(state) {
@@ -133,46 +516,146 @@
             gameTime.textContent = state.gameTime;
             period.textContent = state.period;
             
-            // Update player stats
-            updatePlayerStats(state.team1.players, state.team2.players);
+            // Update player stats and rosters
+            updatePlayerStats('home', state.team1.players, state.team1.activePlayers);
+            updatePlayerStats('away', state.team2.players, state.team2.activePlayers);
+            updateActivePlayers(state);
         }
 
-        function updatePlayerStats(team1Players, team2Players) {
-            playerTable.innerHTML = '';
+        function updatePlayerStats(team, players, activePlayers) {
+            const tableBody = document.querySelector(`#${team}-players-table tbody`);
+            tableBody.innerHTML = '';
             
-            // Add team 1 players
-            team1Players.forEach(player => {
-                const row = createPlayerRow(player);
-                playerTable.appendChild(row);
-            });
-
-            // Add team 2 players
-            team2Players.forEach(player => {
-                const row = createPlayerRow(player);
-                playerTable.appendChild(row);
+            players.forEach(player => {
+                const row = createPlayerRow(team, player, activePlayers.includes(player.number));
+                tableBody.appendChild(row);
             });
         }
 
-        function createPlayerRow(player) {
+        function updateActivePlayers(state) {
+            const homeSlots = document.querySelectorAll('#home-active-players .player-slot');
+            const awaySlots = document.querySelectorAll('#away-active-players .player-slot');
+
+            homeSlots.forEach((slot, index) => {
+                slot.textContent = state.team1.activePlayers[index] || '-';
+            });
+
+            awaySlots.forEach((slot, index) => {
+                slot.textContent = state.team2.activePlayers[index] || '-';
+            });
+        }
+
+        function createPlayerRow(team, player, isActive) {
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${player.number}</td>
                 <td>${player.name}</td>
                 <td>${player.points}</td>
+                <td>${isActive ? '<span class="badge bg-success">On Court</span>' : '<span class="badge bg-secondary">Bench</span>'}</td>
+                <td>
+                    ${isActive ? 
+                        `<button class="btn btn-warning btn-sm" onclick="substitutePlayer('${team}', '${player.number}', 'out')">Sub Out</button>` :
+                        `<button class="btn btn-success btn-sm" onclick="substitutePlayer('${team}', '${player.number}', 'in')">Sub In</button>`
+                    }
+                </td>
             `;
             return row;
         }
 
-        // Example function to update score (for testing)
-        function addPoints(team, points) {
-            fetch('/api/updateScore', {
+        function substitutePlayer(team, playerNumber, action) {
+            const teamKey = team === 'home' ? 'team1' : 'team2';
+            
+            fetch('/api/substitute', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ team, points }),
+                body: JSON.stringify({
+                    team: teamKey,
+                    playerNumber: playerNumber,
+                    action: action
+                }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Substitution failed');
+                }
+                return response.json();
+            })
+            .then(state => {
+                updateScoreboard(state);
+            })
+            .catch(error => {
+                alert(error.message);
             });
         }
+
+        function handleZoneClick(zoneId) {
+            currentShotInfo.zone = zoneId;
+            selectedZone.textContent = getZoneDescription(zoneId);
+            
+            if (currentShotInfo.player) {
+                showShotDialog();
+            } else {
+                alert('Please select a player first!');
+            }
+        }
+
+        function handlePlayerSlotClick(slot) {
+            const playerNumber = slot.textContent;
+            if (playerNumber !== '-') {
+                currentShotInfo.player = playerNumber;
+                currentShotInfo.team = slot.dataset.team;
+                selectedPlayer.textContent = `#${playerNumber}`;
+                
+                if (currentShotInfo.zone) {
+                    showShotDialog();
+                }
+            }
+        }
+
+        function showShotDialog() {
+            overlay.style.display = 'block';
+            shotDialog.style.display = 'block';
+        }
+
+        function closeDialog() {
+            overlay.style.display = 'none';
+            shotDialog.style.display = 'none';
+            currentShotInfo = { team: null, zone: null, player: null };
+        }
+
+        function recordShot(made) {
+            const points = currentShotInfo.zone.includes('three') ? 3 : 2;
+            
+            fetch('/api/recordShot', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    team: currentShotInfo.team,
+                    player: currentShotInfo.player,
+                    zone: currentShotInfo.zone,
+                    points: points,
+                    made: made
+                }),
+            });
+
+            closeDialog();
+        }
+
+        function getZoneDescription(zoneId) {
+            const descriptions = {
+                'home-three': 'Home 3PT',
+                'home-two': 'Home 2PT',
+                'away-three': 'Away 3PT',
+                'away-two': 'Away 2PT'
+            };
+            return descriptions[zoneId] || zoneId;
+        }
+
+        // End of script
     </script>
 </body>
 </html>

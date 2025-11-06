@@ -18,12 +18,22 @@ let gameState = {
     team1: {
         name: "Team 1",
         score: 0,
-        players: []
+        players: [],
+        activePlayers: Array(5).fill(null),
+        shotStats: {
+            made: { two: 0, three: 0 },
+            missed: { two: 0, three: 0 }
+        }
     },
     team2: {
         name: "Team 2",
         score: 0,
-        players: []
+        players: [],
+        activePlayers: Array(5).fill(null),
+        shotStats: {
+            made: { two: 0, three: 0 },
+            missed: { two: 0, three: 0 }
+        }
     },
     gameTime: "00:00",
     period: "1ST HALF",
@@ -42,6 +52,88 @@ app.get('/', (req, res) => {
 
 // API endpoints
 app.get('/api/gameState', (req, res) => {
+    res.json(gameState);
+});
+
+app.post('/api/loadRoster', (req, res) => {
+    const { team, players } = req.body;
+    const teamKey = team === 'home' ? 'team1' : 'team2';
+    
+    // Reset team's players array and active players
+    gameState[teamKey].players = players;
+    gameState[teamKey].activePlayers = Array(5).fill(null);
+    
+    // Reset team's shot stats
+    gameState[teamKey].shotStats = {
+        made: { two: 0, three: 0 },
+        missed: { two: 0, three: 0 }
+    };
+    
+    // Reset team's score
+    gameState[teamKey].score = 0;
+    
+    io.emit('gameState', gameState);
+    res.json(gameState);
+});
+
+app.post('/api/substitute', (req, res) => {
+    const { team, playerNumber, action } = req.body;
+    
+    // Validate team has enough/not too many players
+    const activeCount = gameState[team].activePlayers.filter(p => p !== null).length;
+    
+    if (action === 'in' && activeCount >= 5) {
+        res.status(400).json({ error: 'Cannot have more than 5 players on the court' });
+        return;
+    }
+    
+    if (action === 'out' && activeCount <= 1) {
+        res.status(400).json({ error: 'Must have at least one player on the court' });
+        return;
+    }
+    
+    if (action === 'in') {
+        // Find first empty slot
+        const emptyIndex = gameState[team].activePlayers.findIndex(p => p === null);
+        if (emptyIndex !== -1) {
+            gameState[team].activePlayers[emptyIndex] = playerNumber;
+        }
+    } else if (action === 'out') {
+        // Remove player from active players
+        const playerIndex = gameState[team].activePlayers.indexOf(playerNumber);
+        if (playerIndex !== -1) {
+            gameState[team].activePlayers[playerIndex] = null;
+        }
+    }
+    
+    io.emit('gameState', gameState);
+    res.json(gameState);
+});
+
+app.post('/api/recordShot', (req, res) => {
+    const { team, player, zone, points, made } = req.body;
+    const teamKey = team === 'home' ? 'team1' : 'team2';
+    const shotType = points === 3 ? 'three' : 'two';
+
+    // Update shot statistics
+    if (made) {
+        gameState[teamKey].shotStats.made[shotType]++;
+        gameState[teamKey].score += points;
+    } else {
+        gameState[teamKey].shotStats.missed[shotType]++;
+    }
+
+    // Update player statistics
+    const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
+    if (playerIndex >= 0) {
+        if (made) {
+            gameState[teamKey].players[playerIndex].points += points;
+        }
+        gameState[teamKey].players[playerIndex].attempts++;
+        if (made) gameState[teamKey].players[playerIndex].made++;
+    }
+
+    io.emit('scoreUpdate', gameState);
     res.json(gameState);
 });
 
