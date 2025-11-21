@@ -611,6 +611,8 @@
             zone: null,
             player: null
         };
+        // Store shot info temporarily when waiting for a rebound selection
+        let pendingShotInfo = null;
 
         // Initialize court zones
         const courtZones = document.querySelectorAll('.court-zone');
@@ -824,17 +826,35 @@
                 }),
             });
 
+            // Preserve the shot info in case of a miss so the rebound dialog
+            // can reference the shooting (offensive) team even after the
+            // shot dialog has been closed.
+            pendingShotInfo = {
+                team: currentShotInfo.team,
+                player: currentShotInfo.player,
+                zone: currentShotInfo.zone
+            };
+
             closeDialog();
-            
+
             if (!made) {
-                // Show rebound dialog for missed shots
+                // Show rebound dialog for missed shots. The rebound selector
+                // will use `pendingShotInfo` to know which team was on offense.
                 showReboundDialog();
+            } else {
+                // Clear pending info for made shots (no rebound expected)
+                pendingShotInfo = null;
             }
         }
 
         function showReboundDialog() {
             document.getElementById('rebound-dialog').style.display = 'block';
             document.getElementById('overlay').style.display = 'block';
+            // Default to showing offensive players (the team that took the shot)
+            // Use pendingShotInfo which was set when the shot was recorded.
+            if (pendingShotInfo) {
+                selectReboundType('offense');
+            }
         }
 
         function closeReboundDialog() {
@@ -848,7 +868,13 @@
                 return;
             }
 
-            const reboundTeam = type === 'offense' ? currentShotInfo.team : (currentShotInfo.team === 'home' ? 'away' : 'home');
+            // Use pendingShotInfo (set when the shot was recorded) if available
+            // because currentShotInfo is cleared when the shot dialog is closed.
+            const shooterTeam = (pendingShotInfo && pendingShotInfo.team) || currentShotInfo.team;
+
+            // If the user selects "offense", show players from the shooting team.
+            // If they select "defense", show players from the opposite team.
+            const reboundTeam = type === 'offense' ? shooterTeam : (shooterTeam === 'home' ? 'away' : 'home');
             const players = document.getElementById('rebound-players');
             players.innerHTML = '';
             
@@ -886,6 +912,8 @@
                     player: playerNumber
                 }),
             });
+            // Clear any pending shot info now that the rebound was recorded
+            pendingShotInfo = null;
             closeReboundDialog();
         }
 
