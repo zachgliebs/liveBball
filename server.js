@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const sheetsLogger = require('./sheetsLogger');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,6 +13,18 @@ const io = socketIo(server, {
         methods: ["GET", "POST"]
     }
 });
+
+// Google Sheets configuration
+const SPREADSHEET_ID = '12gFXKBy-Ywq3ibGHAm9yFN1Iglqy9zr5jbD8squxJCE';
+const SHEET_NAME = 'EntryTesting';
+const ENABLE_SHEETS_LOGGING = SPREADSHEET_ID !== null;
+
+// Initialize Google Sheets logger if configured
+if (ENABLE_SHEETS_LOGGING) {
+    sheetsLogger.initializeSheetsClient().catch(err => {
+        console.error('Failed to initialize Google Sheets:', err);
+    });
+}
 
 // Game state
 let gameState = {
@@ -28,7 +41,8 @@ let gameState = {
             rebounds: 0,
             blocks: 0,
             steals: 0,
-            turnovers: 0
+            turnovers: 0,
+            assists: 0
         }
     },
     team2: {
@@ -44,12 +58,27 @@ let gameState = {
             rebounds: 0,
             blocks: 0,
             steals: 0,
-            turnovers: 0
+            turnovers: 0,
+            assists: 0
         }
     },
+    // Which team currently has possession ('home' | 'away' | null)
+    possessionTeam: null,
+    // Keep the last two players who touched the ball for each team after a
+    // possession switch. Useful for assist-crediting logic.
+    teamTouches: {
+        team1: [],
+        team2: []
+    },
+    // Track the most recent steal for fast break detection
+    // { team: 'home'|'away', player: number, timestamp: ms }
+    lastSteal: null,
+    // Track if a rebound was just recorded (for second chance points detection)
+    // { team: 'home'|'away', player: number, timestamp: ms }
+    lastRebound: null,
     gameTime: "00:00",
     period: "1ST HALF",
-    isGameRunning: false
+    isGameRunning: true
 };
 
 // Middleware
@@ -72,7 +101,19 @@ app.post('/api/loadRoster', (req, res) => {
     const teamKey = team === 'home' ? 'team1' : 'team2';
     
     // Reset team's players array and active players
-    gameState[teamKey].players = players;
+    // Normalize players to include stat fields
+    gameState[teamKey].players = players.map(p => ({
+        number: p.number,
+        name: p.name,
+        points: p.points || 0,
+        attempts: p.attempts || 0,
+        made: p.made || 0,
+        rebounds: p.rebounds || 0,
+        steals: p.steals || 0,
+        blocks: p.blocks || 0,
+        turnovers: p.turnovers || 0,
+        assists: p.assists || 0
+    }));
     gameState[teamKey].activePlayers = Array(5).fill(null);
     
     // Reset team's shot stats
@@ -83,6 +124,11 @@ app.post('/api/loadRoster', (req, res) => {
     
     // Reset team's score
     gameState[teamKey].score = 0;
+
+    // Reset team touches for both teams on roster load to avoid stale data
+    gameState.teamTouches.team1 = [];
+    gameState.teamTouches.team2 = [];
+    gameState.possessionTeam = null;
     
     io.emit('gameState', gameState);
     res.json(gameState);
@@ -91,13 +137,7 @@ app.post('/api/loadRoster', (req, res) => {
 app.post('/api/substitute', (req, res) => {
     const { team, playerNumber, action } = req.body;
     
-    // Validate team has enough/not too many players
     const activeCount = gameState[team].activePlayers.filter(p => p !== null).length;
-    
-    if (action === 'in' && activeCount >= 5) {
-        res.status(400).json({ error: 'Cannot have more than 5 players on the court' });
-        return;
-    }
     
     if (action === 'out' && activeCount <= 1) {
         res.status(400).json({ error: 'Must have at least one player on the court' });
@@ -105,10 +145,13 @@ app.post('/api/substitute', (req, res) => {
     }
     
     if (action === 'in') {
-        // Find first empty slot
+        // Find first empty slot, or add to the end if all slots filled
         const emptyIndex = gameState[team].activePlayers.findIndex(p => p === null);
         if (emptyIndex !== -1) {
             gameState[team].activePlayers[emptyIndex] = playerNumber;
+        } else {
+            // Allow more than 5 players
+            gameState[team].activePlayers.push(playerNumber);
         }
     } else if (action === 'out') {
         // Remove player from active players
@@ -138,13 +181,71 @@ app.post('/api/recordRebound', (req, res) => {
         gameState[teamKey].players[playerIndex].rebounds++;
     }
 
+    // Track rebounds for second chance points detection
+    gameState.lastRebound = {
+        team: team,
+        player: player,
+        timestamp: Date.now()
+    };
+
+    io.emit('gameState', gameState);
+    res.json(gameState);
+});
+
+// Set the current ball handler. This updates possession and the last two
+// players who touched the ball for the team in possession.
+app.post('/api/setBallHandler', (req, res) => {
+    const { team, player } = req.body; // team: 'home'|'away', player: number/string
+    const teamKey = team === 'home' ? 'team1' : 'team2';
+    const otherTeamKey = team === 'home' ? 'team2' : 'team1';
+
+    // If possession switched, reset the touches for the new possession team.
+    if (gameState.possessionTeam !== team) {
+        gameState.possessionTeam = team;
+        gameState.teamTouches[teamKey] = [];
+    }
+
+    // Push this player into the team's touch history (max 2)
+    const touches = gameState.teamTouches[teamKey];
+    // Avoid pushing consecutive duplicates
+    if (touches.length === 0 || String(touches[touches.length - 1]) !== String(player)) {
+        touches.push(player);
+        if (touches.length > 2) touches.shift();
+    }
+
+    io.emit('playerUpdate', gameState);
+    res.json(gameState);
+});
+
+// Record an assist for a player
+app.post('/api/recordAssist', (req, res) => {
+    const { team, player } = req.body; // team: 'home'|'away'
+    const teamKey = team === 'home' ? 'team1' : 'team2';
+
+    // Update team assists
+    if (!gameState[teamKey].stats.assists) gameState[teamKey].stats.assists = 0;
+    gameState[teamKey].stats.assists++;
+
+    // Update player assists
+    const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
+    if (playerIndex >= 0) {
+        if (!gameState[teamKey].players[playerIndex].assists) gameState[teamKey].players[playerIndex].assists = 0;
+        gameState[teamKey].players[playerIndex].assists++;
+    }
+
     io.emit('gameState', gameState);
     res.json(gameState);
 });
 
 app.post('/api/recordEvent', (req, res) => {
-    const { eventType, team, player } = req.body;
+    const { eventType, team, player, isFastBreak } = req.body;
     const teamKey = team === 'home' ? 'team1' : 'team2';
+
+    // Defensive: only accept known event types
+    const validEvents = ['steal', 'block', 'turnover'];
+    if (!validEvents.includes(eventType)) {
+        return res.status(400).json({ error: 'Invalid event type' });
+    }
 
     // Update team stats
     gameState[teamKey].stats[eventType + 's']++;
@@ -158,12 +259,31 @@ app.post('/api/recordEvent', (req, res) => {
         gameState[teamKey].players[playerIndex][eventType + 's']++;
     }
 
+    // Track steals for fast break detection
+    if (eventType === 'steal') {
+        gameState.lastSteal = {
+            team: team,
+            player: player,
+            timestamp: Date.now()
+        };
+    }
+
+    // Log to Google Sheets if enabled
+    if (ENABLE_SHEETS_LOGGING) {
+        sheetsLogger.logEvent(SPREADSHEET_ID, SHEET_NAME, {
+            eventType: eventType,
+            team: team,
+            player: player,
+            isFastBreak: isFastBreak || false
+        }).catch(err => console.error('Failed to log event:', err));
+    }
+
     io.emit('gameState', gameState);
     res.json(gameState);
 });
 
 app.post('/api/recordShot', (req, res) => {
-    const { team, player, zone, points, made } = req.body;
+    const { team, player, zone, points, made, assist, assistTeam, isFastBreak, isSecondChance, isPaint } = req.body;
     const teamKey = team === 'home' ? 'team1' : 'team2';
     const shotType = points === 3 ? 'three' : 'two';
 
@@ -183,6 +303,21 @@ app.post('/api/recordShot', (req, res) => {
         }
         gameState[teamKey].players[playerIndex].attempts++;
         if (made) gameState[teamKey].players[playerIndex].made++;
+    }
+
+    // Log to Google Sheets if enabled
+    if (ENABLE_SHEETS_LOGGING && made) {
+        sheetsLogger.logShot(SPREADSHEET_ID, SHEET_NAME, {
+            team: team,
+            player: player,
+            points: points,
+            made: made,
+            assist: assist || null,
+            assistTeam: assistTeam || null,
+            isFastBreak: isFastBreak || false,
+            isSecondChance: isSecondChance || false,
+            isPaint: isPaint || false
+        }).catch(err => console.error('Failed to log shot:', err));
     }
 
     io.emit('scoreUpdate', gameState);

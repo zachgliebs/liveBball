@@ -5,119 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Basketball Scoreboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
-    <style>
-        .team-logo {
-            width: 80px;
-            height: 80px;
-        }
-        .score {
-            font-size: 4rem;
-            font-weight: bold;
-        }
-        .game-time {
-            font-size: 2rem;
-            font-weight: bold;
-            background-color: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .player-stats {
-            font-size: 0.9rem;
-        }
-        .nav-tabs .nav-link {
-            color: #000;
-        }
-        .nav-tabs .nav-link.active {
-            background-color: #2c3e50;
-            color: white;
-        }
-        .court-container {
-            position: relative;
-            width: 100%;
-            max-width: 800px;
-            margin: 20px auto;
-        }
-        .court-image {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-        .court-zone {
-            position: absolute;
-            cursor: pointer;
-            background-color: rgba(255, 255, 255, 0.2);
-            transition: background-color 0.3s;
-            top: 10%;
-            height: 80%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px black;
-        }
-        .court-zone:hover {
-            background-color: rgba(255, 255, 255, 0.4);
-        }
-        #home-two {
-            left: 2%;
-            width: 28%;
-        }
-        #home-three {
-            left: 30%;
-            width: 18%;
-        }
-        #away-three {
-            left: 52%;
-            width: 18%;
-        }
-        #away-two {
-            left: 70%;
-            width: 28%;
-        }
-        .active-players {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-        }
-        .player-slot {
-            width: 60px;
-            height: 60px;
-            border: 2px solid #ddd;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 5px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            background-color: white;
-        }
-        .shot-dialog {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-            display: none;
-        }
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            display: none;
-            z-index: 999;
-        }
-    </style>
 </head>
 <body>
     <div class="container mt-4">
@@ -221,7 +110,13 @@
         </div>
 
         <!-- Game Event Buttons -->
-        <div class="game-events position-fixed" style="left: 20px; top: 50%; transform: translateY(-50%);">
+        <div class="game-events position-fixed" style="left: 20px; top: 50%; transform: translateY(-50%); width: 180px;">
+            <div class="mb-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="ball-handler-toggle" onchange="toggleBallHandlerMode(this.checked)">
+                    <label class="form-check-label" for="ball-handler-toggle">Ball Handler Mode</label>
+                </div>
+            </div>
             <div class="d-flex flex-column gap-2">
                 <button class="btn btn-warning" onclick="showEventDialog('block')">Block</button>
                 <button class="btn btn-info" onclick="showEventDialog('steal')">Steal</button>
@@ -257,6 +152,26 @@
                 <!-- Players will be added dynamically -->
             </div>
             <button type="button" class="btn btn-secondary w-100" onclick="closeReboundDialog()">Cancel</button>
+        </div>
+
+        <!-- Assist Dialog -->
+        <div class="dialog" id="assist-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+            <h4>Assist</h4>
+            <p class="mb-3">Select the player who made the assist (or skip):</p>
+            <div id="assist-players" class="d-grid gap-2 mb-3">
+                <!-- Players will be added dynamically -->
+            </div>
+            <button type="button" class="btn btn-secondary w-100" onclick="closeAssistDialogAndShowSecondChance()">No Assist</button>
+        </div>
+
+        <!-- Second Chance Points Dialog -->
+        <div class="dialog" id="second-chance-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+            <h4>Second Chance Points</h4>
+            <p class="mb-3">Was this second chance points?</p>
+            <div class="btn-group w-100">
+                <button type="button" class="btn btn-success" onclick="recordSecondChancePoints(true)">Yes</button>
+                <button type="button" class="btn btn-danger" onclick="recordSecondChancePoints(false)">No</button>
+            </div>
         </div>
 
         <!-- Event Dialog -->
@@ -613,6 +528,22 @@
         };
         // Store shot info temporarily when waiting for a rebound selection
         let pendingShotInfo = null;
+        // Ball handler mode state
+        let ballHandlerMode = false;
+        // Current ball handler selected by the user: { team: 'home'|'away', player: '23' }
+        let currentBallHandler = null;
+        // Track missed shots for second chance points detection
+        let lastMissedShot = null;
+        // Track if a rebound occurred (for second chance detection)
+        let reboundOccurred = false;
+        // Track the team that got the offensive rebound (for second chance detection)
+        let offensiveReboundTeam = null;
+        // Track assist info for logging
+        let currentAssist = null; // { team, player }
+        // Track fast break detection
+        let isFastBreak = false;
+        // Track second chance detection
+        let isSecondChance = false;
 
         // Initialize court zones
         const courtZones = document.querySelectorAll('.court-zone');
@@ -625,6 +556,56 @@
         playerSlots.forEach(slot => {
             slot.addEventListener('click', () => handlePlayerSlotClick(slot));
         });
+
+        function toggleBallHandlerMode(enabled) {
+            ballHandlerMode = !!enabled;
+            if (!ballHandlerMode) {
+                // clear any visual selection
+                currentBallHandler = null;
+                updateHandlerHighlight();
+            } else {
+                // if we have a gameState and possessionTeam, prefer highlighting last touch
+                if (gameState && gameState.possessionTeam) {
+                    const teamKey = gameState.possessionTeam === 'home' ? 'team1' : 'team2';
+                    const touches = gameState.teamTouches[teamKey] || [];
+                    const last = touches.length ? touches[touches.length - 1] : null;
+                    if (last) {
+                        currentBallHandler = { team: gameState.possessionTeam, player: last };
+                    }
+                    updateHandlerHighlight();
+                }
+            }
+        }
+
+        function setBallHandler(team, playerNumber) {
+            // Call server to set ball handler (updates possession & teamTouches)
+            fetch('/api/setBallHandler', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ team: team, player: playerNumber })
+            })
+            .then(r => r.json())
+            .then(state => {
+                // server will also emit via socket; but set local handler now
+                currentBallHandler = { team: team, player: playerNumber };
+                updateHandlerHighlight();
+            })
+            .catch(err => console.error('setBallHandler error', err));
+        }
+
+        function updateHandlerHighlight() {
+            // remove class from all slots
+            document.querySelectorAll('.player-slot').forEach(s => s.classList.remove('ball-handler'));
+            if (!ballHandlerMode || !currentBallHandler) return;
+
+            // find the slot that matches team and player number
+            document.querySelectorAll('.player-slot').forEach(s => {
+                const num = s.textContent.trim();
+                if (num === String(currentBallHandler.player) && s.dataset.team === currentBallHandler.team) {
+                    s.classList.add('ball-handler');
+                }
+            });
+        }
 
         // Global game state
         let gameState = null;
@@ -650,6 +631,16 @@
             gameState = state;
             updateScoreboard(state);
             updateActivePlayers(state);
+            // If ball handler mode is on, try to update local handler from server touches
+            if (ballHandlerMode && gameState && gameState.possessionTeam) {
+                const teamKey = gameState.possessionTeam === 'home' ? 'team1' : 'team2';
+                const touches = (gameState.teamTouches && gameState.teamTouches[teamKey]) || [];
+                const last = touches.length ? touches[touches.length - 1] : null;
+                if (last) {
+                    currentBallHandler = { team: gameState.possessionTeam, player: last };
+                }
+                updateHandlerHighlight();
+            }
         });
 
         function updateScoreboard(state) {
@@ -710,15 +701,81 @@
         }
 
         function updateActivePlayers(state) {
-            const homeSlots = document.querySelectorAll('#home-active-players .player-slot');
-            const awaySlots = document.querySelectorAll('#away-active-players .player-slot');
+            const homeContainer = document.getElementById('home-active-players');
+            const awayContainer = document.getElementById('away-active-players');
 
-            homeSlots.forEach((slot, index) => {
-                slot.textContent = state.team1.activePlayers[index] || '-';
+            // Filter out null values to get only active players
+            const homeActivePlayers = state.team1.activePlayers.filter(p => p !== null);
+            const awayActivePlayers = state.team2.activePlayers.filter(p => p !== null);
+
+            // Update home team players
+            const homePlayerCount = homeActivePlayers.length;
+            const currentHomeSlots = homeContainer.querySelectorAll('.player-slot').length;
+            
+            // Add slots if needed
+            if (homePlayerCount > currentHomeSlots) {
+                for (let i = currentHomeSlots; i < homePlayerCount; i++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'player-slot';
+                    slot.setAttribute('data-team', 'home');
+                    slot.setAttribute('data-index', i);
+                    slot.textContent = '-';
+                    slot.addEventListener('click', function() { handlePlayerSlotClick(this); });
+                    homeContainer.appendChild(slot);
+                }
+            }
+            
+            // Remove extra slots if no longer needed
+            const homeSlots = homeContainer.querySelectorAll('.player-slot');
+            if (homePlayerCount < homeSlots.length) {
+                for (let i = homeSlots.length - 1; i >= homePlayerCount; i--) {
+                    homeSlots[i].remove();
+                }
+            }
+            
+            // Update home team player numbers and styling
+            homeContainer.querySelectorAll('.player-slot').forEach((slot, index) => {
+                slot.textContent = homeActivePlayers[index] || '-';
+                if (index >= 5) {
+                    slot.classList.add('extra-player');
+                } else {
+                    slot.classList.remove('extra-player');
+                }
             });
 
-            awaySlots.forEach((slot, index) => {
-                slot.textContent = state.team2.activePlayers[index] || '-';
+            // Update away team players
+            const awayPlayerCount = awayActivePlayers.length;
+            const currentAwaySlots = awayContainer.querySelectorAll('.player-slot').length;
+            
+            // Add slots if needed
+            if (awayPlayerCount > currentAwaySlots) {
+                for (let i = currentAwaySlots; i < awayPlayerCount; i++) {
+                    const slot = document.createElement('div');
+                    slot.className = 'player-slot';
+                    slot.setAttribute('data-team', 'away');
+                    slot.setAttribute('data-index', i);
+                    slot.textContent = '-';
+                    slot.addEventListener('click', function() { handlePlayerSlotClick(this); });
+                    awayContainer.appendChild(slot);
+                }
+            }
+            
+            // Remove extra slots if no longer needed
+            const awaySlots = awayContainer.querySelectorAll('.player-slot');
+            if (awayPlayerCount < awaySlots.length) {
+                for (let i = awaySlots.length - 1; i >= awayPlayerCount; i--) {
+                    awaySlots[i].remove();
+                }
+            }
+            
+            // Update away team player numbers and styling
+            awayContainer.querySelectorAll('.player-slot').forEach((slot, index) => {
+                slot.textContent = awayActivePlayers[index] || '-';
+                if (index >= 5) {
+                    slot.classList.add('extra-player');
+                } else {
+                    slot.classList.remove('extra-player');
+                }
             });
         }
 
@@ -775,6 +832,17 @@
             currentShotInfo.zone = zoneId;
             selectedZone.textContent = getZoneDescription(zoneId);
             
+            // If Ball Handler Mode is active and a handler is selected,
+            // use that player as the shooter so the user isn't prompted
+            // to select a player manually.
+            if (ballHandlerMode && currentBallHandler && currentBallHandler.player) {
+                currentShotInfo.player = currentBallHandler.player;
+                currentShotInfo.team = currentBallHandler.team;
+                selectedPlayer.textContent = `#${currentBallHandler.player}`;
+                showShotDialog();
+                return;
+            }
+
             if (currentShotInfo.player) {
                 showShotDialog();
             } else {
@@ -785,12 +853,18 @@
         function handlePlayerSlotClick(slot) {
             const playerNumber = slot.textContent;
             if (playerNumber !== '-') {
-                currentShotInfo.player = playerNumber;
-                currentShotInfo.team = slot.dataset.team;
-                selectedPlayer.textContent = `#${playerNumber}`;
-                
-                if (currentShotInfo.zone) {
-                    showShotDialog();
+                if (ballHandlerMode) {
+                    // In ball handler mode, clicking a player sets them as ball handler
+                    const team = slot.dataset.team;
+                    setBallHandler(team, playerNumber);
+                } else {
+                    currentShotInfo.player = playerNumber;
+                    currentShotInfo.team = slot.dataset.team;
+                    selectedPlayer.textContent = `#${playerNumber}`;
+            
+                    if (currentShotInfo.zone) {
+                        showShotDialog();
+                    }
                 }
             }
         }
@@ -811,7 +885,6 @@
 
         function recordShot(made) {
             const points = currentShotInfo.zone.includes('three') ? 3 : 2;
-            
             fetch('/api/recordShot', {
                 method: 'POST',
                 headers: {
@@ -822,7 +895,12 @@
                     player: currentShotInfo.player,
                     zone: currentShotInfo.zone,
                     points: points,
-                    made: made
+                    made: made,
+                    assist: currentAssist ? currentAssist.player : null,
+                    assistTeam: currentAssist ? currentAssist.team : null,
+                    isFastBreak: isFastBreak,
+                    isSecondChance: isSecondChance,
+                    isPaint: false  // Paint not implemented yet
                 }),
             });
 
@@ -838,12 +916,18 @@
             closeDialog();
 
             if (!made) {
+                // Track the missed shot for potential second chance points
+                lastMissedShot = {
+                    team: currentShotInfo.team,
+                    player: currentShotInfo.player,
+                    timestamp: Date.now()
+                };
                 // Show rebound dialog for missed shots. The rebound selector
                 // will use `pendingShotInfo` to know which team was on offense.
                 showReboundDialog();
             } else {
-                // Clear pending info for made shots (no rebound expected)
-                pendingShotInfo = null;
+                // Show assist dialog for made shots
+                showAssistDialog();
             }
         }
 
@@ -912,9 +996,140 @@
                     player: playerNumber
                 }),
             });
+            // If Ball Handler Mode is on, make the rebounder the new ball handler
+            if (ballHandlerMode) {
+                setBallHandler(team, playerNumber);
+            }
+            
+            // Track if this is an offensive rebound (same team as the one that shot)
+            if (lastMissedShot && lastMissedShot.team === team) {
+                reboundOccurred = true;
+                offensiveReboundTeam = team;
+            }
+            
             // Clear any pending shot info now that the rebound was recorded
             pendingShotInfo = null;
             closeReboundDialog();
+        }
+
+        function showAssistDialog() {
+            document.getElementById('assist-dialog').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+            // Populate assist players from the shooting team
+            selectAssistTeam();
+
+            // Check for fast break (steal by shooting team within last 5 seconds)
+            isFastBreak = false;
+            if (gameState && gameState.lastSteal) {
+                const shootingTeam = pendingShotInfo ? pendingShotInfo.team : currentShotInfo.team;
+                const timeSinceSeal = Date.now() - gameState.lastSteal.timestamp;
+                if (gameState.lastSteal.team === shootingTeam && timeSinceSeal < 5000) {
+                    isFastBreak = confirm('Was this a fast break?');
+                }
+            }
+        }
+
+        function closeAssistDialog() {
+            document.getElementById('assist-dialog').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+            pendingShotInfo = null;
+        }
+
+        function closeAssistDialogAndShowSecondChance() {
+            document.getElementById('assist-dialog').style.display = 'none';
+            // Show second chance dialog if applicable
+            if (reboundOccurred && offensiveReboundTeam) {
+                showSecondChanceDialog();
+            } else {
+                document.getElementById('overlay').style.display = 'none';
+                pendingShotInfo = null;
+            }
+        }
+
+        function showSecondChanceDialog() {
+            document.getElementById('second-chance-dialog').style.display = 'block';
+            // overlay already visible
+        }
+
+        function closeSecondChanceDialog() {
+            document.getElementById('second-chance-dialog').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+            pendingShotInfo = null;
+            reboundOccurred = false;
+            offensiveReboundTeam = null;
+            lastMissedShot = null;
+            currentAssist = null;
+            isFastBreak = false;
+            isSecondChance = false;
+        }
+
+        function recordSecondChancePoints(isSecondChance) {
+            // Store the second chance flag for logging
+            isSecondChance = isSecondChance;
+            if (isSecondChance) {
+                console.log('Second chance points recorded');
+            }
+            closeSecondChanceDialog();
+        }
+
+        function selectAssistTeam() {
+            if (!gameState) {
+                alert('Game state not initialized');
+                return;
+            }
+
+            // Use the shooting team from pendingShotInfo
+            const assistTeam = pendingShotInfo ? pendingShotInfo.team : currentShotInfo.team;
+            const teamKey = assistTeam === 'home' ? 'team1' : 'team2';
+            const teamState = gameState[teamKey];
+
+            const players = document.getElementById('assist-players');
+            players.innerHTML = '';
+
+            if (!teamState || !teamState.activePlayers) {
+                alert('No active players found');
+                return;
+            }
+
+            // Get the prior touch (first player in teamTouches) for potential assist
+            const touches = gameState.teamTouches[teamKey] || [];
+            const priorTouch = touches.length > 0 ? touches[0] : null;
+
+            teamState.activePlayers.forEach(playerNumber => {
+                if (playerNumber) {
+                    const player = teamState.players.find(p => p.number === playerNumber);
+                    if (player) {
+                        const btn = document.createElement('button');
+                        // Highlight the prior touch player
+                        if (priorTouch && String(priorTouch) === String(player.number)) {
+                            btn.className = 'btn btn-primary';
+                            btn.textContent = `#${player.number} ${player.name} (Last Touch)`;
+                        } else {
+                            btn.className = 'btn btn-outline-primary';
+                            btn.textContent = `#${player.number} ${player.name}`;
+                        }
+                        btn.onclick = () => recordAssist(assistTeam, player.number);
+                        players.appendChild(btn);
+                    }
+                }
+            });
+        }
+
+        function recordAssist(team, playerNumber) {
+            // Store the assist info for logging
+            currentAssist = { team: team, player: playerNumber };
+            
+            fetch('/api/recordAssist', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    team: team,
+                    player: playerNumber
+                }),
+            });
+            closeAssistDialogAndShowSecondChance();
         }
 
         function showEventDialog(eventType) {
@@ -964,17 +1179,48 @@
         }
 
         function recordEvent(eventType, team, playerNumber) {
-            fetch('/api/recordEvent', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    eventType: eventType,
-                    team: team,
-                    player: playerNumber
-                }),
-            });
+            // Special handling when ballHandlerMode is enabled for steals:
+            // - If a steal is recorded and there is a current ball handler on the other team,
+            //   credit the previous handler with a turnover, credit the stealer with the steal,
+            //   and set the new ball handler to the stealer.
+            if (eventType === 'steal' && ballHandlerMode && currentBallHandler && currentBallHandler.team !== team) {
+                // credit the steal to the selected player
+                fetch('/api/recordEvent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ eventType: 'steal', team: team, player: playerNumber, isFastBreak: false })
+                }).then(r => r.json()).then(s => updateScoreboard(s)).catch(e => console.error(e));
+
+                // credit turnover to previous handler
+                fetch('/api/recordEvent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ eventType: 'turnover', team: currentBallHandler.team, player: currentBallHandler.player, isFastBreak: false })
+                }).then(r => r.json()).then(s => updateScoreboard(s)).catch(e => console.error(e));
+
+                // set new ball handler to the stealer (possession switched)
+                setBallHandler(team, playerNumber);
+            } else {
+                fetch('/api/recordEvent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        eventType: eventType,
+                        team: team,
+                        player: playerNumber,
+                        isFastBreak: false
+                    }),
+                })
+                .then(r => r.json())
+                .then(s => updateScoreboard(s))
+                .catch(e => console.error(e));
+            }
+
+            // If in ballHandlerMode and event was a turnover/steal that changed possession,
+            // ensure we clear/update handler highlight as appropriate. For steals we set
+            // the handler above; for manual turnovers, user may also set handler afterwards.
             closeEventDialog();
         }
 

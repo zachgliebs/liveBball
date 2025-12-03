@@ -1,0 +1,136 @@
+.team-logo {
+    width: 80px;
+    height: 80px;
+}
+
+.score {
+    font-size: 4rem;
+    font-weight: bold;
+}
+
+.game-time {
+    font-size: 2rem;
+    font-weight: bold;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.player-stats {
+    font-size: 0.9rem;
+}
+
+.nav-tabs .nav-link {
+    color: #000;
+}
+
+.nav-tabs .nav-link.active {
+    background-color: #2c3e50;
+    color: white;
+}
+
+.court-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin: 20px auto;
+}
+
+.court-image {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.court-zone {
+    position: absolute;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, 0.2);
+    transition: background-color 0.3s;
+    top: 10%;
+    height: 80%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+}
+
+.court-zone:hover {
+    background-color: rgba(255, 255, 255, 0.4);
+}
+
+#home-two {
+    left: 2%;
+    width: 28%;
+}
+
+#home-three {
+    left: 30%;
+    width: 18%;
+}
+
+#away-three {
+    left: 52%;
+    width: 18%;
+}
+
+#away-two {
+    left: 70%;
+    width: 28%;
+}
+
+.active-players {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.player-slot {
+    width: 60px;
+    height: 60px;
+    border: 2px solid #ddd;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 5px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    background-color: white;
+}
+
+.ball-handler {
+    background-color: lightgreen !important;
+    border-color: #3ac569 !important;
+}
+
+.extra-player {
+    border: 3px solid red !important;
+}
+
+.shot-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    display: none;
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    z-index: 999;
+}
