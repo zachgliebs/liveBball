@@ -27,7 +27,7 @@ Every play is automatically logged to your Google Sheet with the following infor
 | Column | Data |
 |--------|------|
 | A | Player (H23, A34, etc) |
-| B | Event (2 YES, 3 NO, STL, BLK, TO, etc) |
+| B | Event (2YES, 3NO, STL, BLK, TO, etc) |
 | C | Assist/Rebound Player (if applicable) |
 | D | Fast Break (TRUE/FALSE) |
 | E | 2nd Chance Points (TRUE/FALSE) |
@@ -49,9 +49,9 @@ Every play is automatically logged to your Google Sheet with the following infor
 
 ## Event Types
 
-- `1 YES` / `1 NO` - Free throw make/miss
-- `2 YES` / `2 NO` - 2-point make/miss  
-- `3 YES` / `3 NO` - 3-point make/miss
+-- `1YES` / `1NO` - Free throw make/miss
+-- `2YES` / `2NO` - 2-point make/miss
+-- `3YES` / `3NO` - 3-point make/miss
 - `STL` - Steal
 - `BLK` - Block
 - `TO` - Turnover

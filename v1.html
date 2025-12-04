@@ -121,6 +121,7 @@
                 <button class="btn btn-warning" onclick="showEventDialog('block')">Block</button>
                 <button class="btn btn-info" onclick="showEventDialog('steal')">Steal</button>
                 <button class="btn btn-danger" onclick="showEventDialog('turnover')">Turnover</button>
+                <button class="btn btn-secondary" onclick="showFreeThrowSetupDialog()">Free Throw</button>
             </div>
         </div>
 
@@ -185,6 +186,60 @@
                 <!-- Players will be added dynamically -->
             </div>
             <button type="button" class="btn btn-secondary w-100" onclick="closeEventDialog()">Cancel</button>
+        </div>
+
+        <!-- Free Throw Setup Dialog -->
+        <div class="dialog" id="ft-setup-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+            <h4>Free Throws</h4>
+            <p>Select shooter and number of shots.</p>
+            <div class="mb-2">
+                <label class="form-label">Team</label>
+                <div>
+                    <button class="btn btn-outline-primary me-2" onclick="ftSelectTeam('home')">Home</button>
+                    <button class="btn btn-outline-primary" onclick="ftSelectTeam('away')">Away</button>
+                </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Shooter</label>
+                <div id="ft-shooter-players" class="d-grid gap-2"></div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Number of shots</label>
+                <select id="ft-count" class="form-select" style="width: auto;">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                </select>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="ft-second-chance">
+                <label class="form-check-label" for="ft-second-chance">Mark these as Second Chance Points</label>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" onclick="startFreeThrows()">Start</button>
+                <button class="btn btn-secondary" onclick="closeFreeThrowSetup()">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Free Throw Results Dialog -->
+        <div class="dialog" id="ft-results-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001; width: 320px;">
+            <h4>Free Throw Sequence</h4>
+            <div id="ft-sequence" class="mb-3">
+                <!-- shots will be listed here -->
+            </div>
+            <div class="d-flex gap-2 mb-2">
+                <button class="btn btn-success" id="ft-mark-made" onclick="markCurrentFT(true)">Make</button>
+                <button class="btn btn-danger" id="ft-mark-miss" onclick="markCurrentFT(false)">Miss</button>
+                <button class="btn btn-secondary" onclick="skipFreeThrows()">Skip</button>
+            </div>
+            <div class="d-flex justify-content-between">
+                <button class="btn btn-outline-secondary" onclick="prevFT()">Prev</button>
+                <button class="btn btn-outline-secondary" onclick="nextFT()">Next</button>
+            </div>
+            <div class="mt-2 d-flex gap-2">
+                <button class="btn btn-primary" onclick="finishFreeThrows()">Finish</button>
+                <button class="btn btn-secondary" onclick="closeFTResults()">Cancel</button>
+            </div>
         </div>
 
         <!-- Navigation Tabs -->
@@ -885,50 +940,77 @@
 
         function recordShot(made) {
             const points = currentShotInfo.zone.includes('three') ? 3 : 2;
-            fetch('/api/recordShot', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    team: currentShotInfo.team,
-                    player: currentShotInfo.player,
-                    zone: currentShotInfo.zone,
-                    points: points,
-                    made: made,
-                    assist: currentAssist ? currentAssist.player : null,
-                    assistTeam: currentAssist ? currentAssist.team : null,
-                    isFastBreak: isFastBreak,
-                    isSecondChance: isSecondChance,
-                    isPaint: false  // Paint not implemented yet
-                }),
-            });
 
-            // Preserve the shot info in case of a miss so the rebound dialog
-            // can reference the shooting (offensive) team even after the
-            // shot dialog has been closed.
+            // Preserve the shot info so it can be finalized after assist/second-chance
             pendingShotInfo = {
                 team: currentShotInfo.team,
                 player: currentShotInfo.player,
-                zone: currentShotInfo.zone
+                zone: currentShotInfo.zone,
+                points: points,
+                made: made
             };
 
             closeDialog();
 
             if (!made) {
-                // Track the missed shot for potential second chance points
+                // For misses, defer sending to the server until the rebound is selected
+                // so we can write a single row that includes the rebounder in Column C.
+
+                // Track the missed shot locally until rebound selection
                 lastMissedShot = {
-                    team: currentShotInfo.team,
-                    player: currentShotInfo.player,
+                    team: pendingShotInfo.team,
+                    player: pendingShotInfo.player,
                     timestamp: Date.now()
                 };
-                // Show rebound dialog for missed shots. The rebound selector
-                // will use `pendingShotInfo` to know which team was on offense.
+
+                // Show rebound dialog for missed shots; the rebound handler will submit the shot row
                 showReboundDialog();
             } else {
-                // Show assist dialog for made shots
+                // For made shots, wait for assist selection (and potential second chance)
+                currentAssist = null; // reset any previous
+                isSecondChance = false;
+                // Detect fast break in showAssistDialog
                 showAssistDialog();
             }
+        }
+
+        // Finalize a made shot after assist and second-chance selection
+        function finalizeMadeShot() {
+            if (!pendingShotInfo) return;
+
+            const payload = {
+                team: pendingShotInfo.team,
+                player: pendingShotInfo.player,
+                zone: pendingShotInfo.zone,
+                points: pendingShotInfo.points,
+                made: true,
+                assist: currentAssist ? currentAssist.player : null,
+                assistTeam: currentAssist ? currentAssist.team : null,
+                isFastBreak: isFastBreak || false,
+                isSecondChance: isSecondChance || false,
+                isPaint: false
+            };
+
+            // Send to server
+            fetch('/api/recordShot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(state => {
+                updateScoreboard(state);
+            })
+            .catch(e => console.error('finalizeMadeShot error', e))
+            .finally(() => {
+                // cleanup
+                pendingShotInfo = null;
+                currentAssist = null;
+                isFastBreak = false;
+                isSecondChance = false;
+                document.getElementById('assist-dialog').style.display = 'none';
+                document.getElementById('overlay').style.display = 'none';
+            });
         }
 
         function showReboundDialog() {
@@ -986,6 +1068,7 @@
         }
 
         function recordRebound(team, playerNumber) {
+            // First, record the rebound in the server (updates stats)
             fetch('/api/recordRebound', {
                 method: 'POST',
                 headers: {
@@ -995,21 +1078,53 @@
                     team: team,
                     player: playerNumber
                 }),
+            }).then(r => r.json()).then(state => {
+                // Update local scoreboard
+                updateScoreboard(state);
+
+                // If Ball Handler Mode is on, make the rebounder the new ball handler
+                if (ballHandlerMode) {
+                    setBallHandler(team, playerNumber);
+                }
+
+                // If we have a pending missed shot, now submit the shot row including the rebounder
+                if (pendingShotInfo && pendingShotInfo.made === false) {
+                    // Build payload with the rebounder in the assist slot so Column C is populated
+                    const payload = {
+                        team: pendingShotInfo.team,
+                        player: pendingShotInfo.player,
+                        zone: pendingShotInfo.zone,
+                        points: pendingShotInfo.points,
+                        made: false,
+                        assist: playerNumber, // use assist column to store rebounder
+                        assistTeam: team,
+                        isFastBreak: false,
+                        isSecondChance: false,
+                        isPaint: false
+                    };
+
+                    fetch('/api/recordShot', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    }).then(r => r.json()).then(s => updateScoreboard(s)).catch(e => console.error('recordShot after rebound error', e));
+                }
+
+                // Track if this is an offensive rebound (same team as the one that shot)
+                if (lastMissedShot && lastMissedShot.team === team) {
+                    reboundOccurred = true;
+                    offensiveReboundTeam = team;
+                }
+
+                // Clear any pending shot info now that the rebound was recorded
+                pendingShotInfo = null;
+                closeReboundDialog();
+            }).catch(e => {
+                console.error('recordRebound error', e);
+                // still close the dialog to avoid blocking the UI
+                pendingShotInfo = null;
+                closeReboundDialog();
             });
-            // If Ball Handler Mode is on, make the rebounder the new ball handler
-            if (ballHandlerMode) {
-                setBallHandler(team, playerNumber);
-            }
-            
-            // Track if this is an offensive rebound (same team as the one that shot)
-            if (lastMissedShot && lastMissedShot.team === team) {
-                reboundOccurred = true;
-                offensiveReboundTeam = team;
-            }
-            
-            // Clear any pending shot info now that the rebound was recorded
-            pendingShotInfo = null;
-            closeReboundDialog();
         }
 
         function showAssistDialog() {
@@ -1032,7 +1147,6 @@
         function closeAssistDialog() {
             document.getElementById('assist-dialog').style.display = 'none';
             document.getElementById('overlay').style.display = 'none';
-            pendingShotInfo = null;
         }
 
         function closeAssistDialogAndShowSecondChance() {
@@ -1041,8 +1155,8 @@
             if (reboundOccurred && offensiveReboundTeam) {
                 showSecondChanceDialog();
             } else {
-                document.getElementById('overlay').style.display = 'none';
-                pendingShotInfo = null;
+                // finalize the made shot now (no second chance)
+                finalizeMadeShot();
             }
         }
 
@@ -1054,22 +1168,15 @@
         function closeSecondChanceDialog() {
             document.getElementById('second-chance-dialog').style.display = 'none';
             document.getElementById('overlay').style.display = 'none';
-            pendingShotInfo = null;
-            reboundOccurred = false;
-            offensiveReboundTeam = null;
-            lastMissedShot = null;
-            currentAssist = null;
-            isFastBreak = false;
-            isSecondChance = false;
         }
 
-        function recordSecondChancePoints(isSecondChance) {
-            // Store the second chance flag for logging
-            isSecondChance = isSecondChance;
-            if (isSecondChance) {
-                console.log('Second chance points recorded');
-            }
-            closeSecondChanceDialog();
+        function recordSecondChancePoints(choice) {
+            // Store the second chance flag for logging and finalize the shot
+            isSecondChance = !!choice;
+            if (isSecondChance) console.log('Second chance points recorded');
+            // Hide second chance dialog and finalize the shot entry
+            document.getElementById('second-chance-dialog').style.display = 'none';
+            finalizeMadeShot();
         }
 
         function selectAssistTeam() {
@@ -1176,6 +1283,156 @@
                     }
                 }
             });
+        }
+
+        // Free throw UI state
+        let ftTeam = null;
+        let ftShooter = null;
+        let ftCount = 1;
+        let ftResults = []; // array of booleans
+        let ftIndex = 0;
+
+        function showFreeThrowSetupDialog() {
+            document.getElementById('ft-setup-dialog').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+            // default to home
+            ftSelectTeam('home');
+        }
+
+        function closeFreeThrowSetup() {
+            document.getElementById('ft-setup-dialog').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        function ftSelectTeam(team) {
+            ftTeam = team;
+            const players = document.getElementById('ft-shooter-players');
+            players.innerHTML = '';
+            const teamKey = team === 'home' ? 'team1' : 'team2';
+            const teamState = gameState && gameState[teamKey];
+            if (!teamState || !teamState.activePlayers) {
+                players.innerHTML = '<div class="text-muted">No active players</div>';
+                return;
+            }
+            teamState.activePlayers.forEach(playerNumber => {
+                if (playerNumber) {
+                    const p = teamState.players.find(x => x.number === playerNumber);
+                    if (p) {
+                        const btn = document.createElement('button');
+                        btn.className = 'btn btn-outline-primary';
+                        btn.textContent = `#${p.number} ${p.name}`;
+                        btn.onclick = () => {
+                            ftShooter = p.number;
+                            // highlight selection
+                            Array.from(players.children).forEach(c => c.classList.remove('active'));
+                            btn.classList.add('active');
+                        };
+                        players.appendChild(btn);
+                    }
+                }
+            });
+        }
+
+        function startFreeThrows() {
+            const countEl = document.getElementById('ft-count');
+            const scEl = document.getElementById('ft-second-chance');
+            ftCount = parseInt(countEl.value, 10) || 1;
+            const isSecond = !!scEl.checked;
+            if (!ftShooter || !ftTeam) {
+                alert('Please select a shooter');
+                return;
+            }
+            // Initialize results
+            ftResults = Array(ftCount).fill(null);
+            ftIndex = 0;
+            // store second chance flag in a temporary place
+            ftIsSecond = isSecond;
+            // build sequence UI
+            renderFTSequence();
+            document.getElementById('ft-setup-dialog').style.display = 'none';
+            document.getElementById('ft-results-dialog').style.display = 'block';
+        }
+
+        function renderFTSequence() {
+            const container = document.getElementById('ft-sequence');
+            container.innerHTML = '';
+            ftResults.forEach((r, i) => {
+                const div = document.createElement('div');
+                div.className = 'd-flex align-items-center gap-2 mb-1';
+                const label = document.createElement('div');
+                label.style.width = '40px';
+                label.textContent = `#${i+1}`;
+                const state = document.createElement('div');
+                state.textContent = r === null ? '—' : (r ? 'MAKE' : 'MISS');
+                state.id = `ft-state-${i}`;
+                if (i === ftIndex) div.style.fontWeight = '700';
+                div.appendChild(label);
+                div.appendChild(state);
+                container.appendChild(div);
+            });
+        }
+
+        function markCurrentFT(made) {
+            ftResults[ftIndex] = !!made;
+            const el = document.getElementById(`ft-state-${ftIndex}`);
+            if (el) el.textContent = made ? 'MAKE' : 'MISS';
+        }
+
+        function nextFT() {
+            if (ftIndex < ftResults.length - 1) {
+                ftIndex++;
+                renderFTSequence();
+            }
+        }
+
+        function prevFT() {
+            if (ftIndex > 0) {
+                ftIndex--;
+                renderFTSequence();
+            }
+        }
+
+        function skipFreeThrows() {
+            // user chose to log nothing
+            ftResults = [];
+            closeFTResults();
+        }
+
+        function closeFTResults() {
+            document.getElementById('ft-results-dialog').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        async function finishFreeThrows() {
+            // send each free throw to server
+            if (!ftResults || ftResults.length === 0) {
+                closeFTResults();
+                return;
+            }
+            const isSecond = !!ftIsSecond;
+            for (let i = 0; i < ftResults.length; i++) {
+                const made = !!ftResults[i];
+                const payload = {
+                    team: ftTeam,
+                    player: ftShooter,
+                    made: made,
+                    isSecondChance: isSecond
+                };
+                try {
+                    await fetch('/api/recordFreeThrow', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } catch (e) {
+                    console.error('Free throw record error', e);
+                }
+            }
+            // refresh game state from server
+            fetch('/api/gameState').then(r => r.json()).then(s => updateScoreboard(s));
+            closeFTResults();
+            // reset ft state
+            ftTeam = null; ftShooter = null; ftResults = []; ftIndex = 0; ftIsSecond = false;
         }
 
         function recordEvent(eventType, team, playerNumber) {

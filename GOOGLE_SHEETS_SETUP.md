@@ -79,16 +79,16 @@ The play-by-play sheet follows this format:
 | Column | Name | Format | Example |
 |--------|------|--------|---------|
 | A | Player | Letter + Number | H23, A34 |
-| B | Event | Type + Result | 2 YES, 1 NO, STL, BLK, TO |
+| B | Event | Type + Result | 2YES, 1NO, STL, BLK, TO |
 | C | Assist/Rebound | Letter + Number | H34, A12 |
 | D | Fast Break | TRUE/FALSE | TRUE |
 | E | 2nd Chance | TRUE/FALSE | FALSE |
 | F | Paint | TRUE/FALSE | FALSE |
 
 ### Event Types:
-- `1 YES` / `1 NO` - Free throw make/miss
-- `2 YES` / `2 NO` - 2-point make/miss
-- `3 YES` / `3 NO` - 3-point make/miss
+- `1YES` / `1NO` - Free throw make/miss
+- `2YES` / `2NO` - 2-point make/miss
+- `3YES` / `3NO` - 3-point make/miss
 - `STL` - Steal
 - `BLK` - Block
 - `TO` - Turnover

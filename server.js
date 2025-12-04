@@ -165,7 +165,7 @@ app.post('/api/substitute', (req, res) => {
     res.json(gameState);
 });
 
-app.post('/api/recordRebound', (req, res) => {
+app.post('/api/recordRebound', async (req, res) => {
     const { team, player } = req.body;
     const teamKey = team === 'home' ? 'team1' : 'team2';
 
@@ -187,6 +187,37 @@ app.post('/api/recordRebound', (req, res) => {
         player: player,
         timestamp: Date.now()
     };
+
+    // If there was a recent missed shot by this same team, update that missed-shot row
+    // instead of appending a separate rebound row so the sheet shows: shooter,event,rebounder,...
+    if (ENABLE_SHEETS_LOGGING) {
+        try {
+            if (gameState.lastMissedShot && gameState.lastMissedShot.team === team && gameState.lastMissedShot.sheetRow) {
+                // Build values to write into the missed-shot row
+                const rowNum = gameState.lastMissedShot.sheetRow;
+                const shooter = gameState.lastMissedShot.shooter || (team === 'home' ? `H${gameState.lastMissedShot.player}` : `A${gameState.lastMissedShot.player}`);
+                const event = gameState.lastMissedShot.event || '';
+                const rebounder = (team === 'home' ? 'H' : 'A') + player;
+                const fastBreak = false;
+                const secondChance = false;
+                const paint = false;
+
+                const rowValues = [shooter, event, rebounder, fastBreak, secondChance, paint];
+                console.log(`Updating missed-shot row ${rowNum} with rebounder ${rebounder}:`, rowValues);
+                await sheetsLogger.updateRow(SPREADSHEET_ID, SHEET_NAME, rowNum, rowValues);
+
+                // Clear lastMissedShot since it's been handled
+                gameState.lastMissedShot = null;
+            } else {
+                // No recent missed shot to update — do NOT append a standalone rebound row.
+                // Rebounds are tracked in server state; we intentionally avoid creating
+                // separate 'REB' rows in the sheet to keep the play-by-play tidy.
+                console.log('Standalone rebound recorded server-side; not logged to sheet:', { team, player });
+            }
+        } catch (err) {
+            console.error('Error handling rebound sheet update:', err);
+        }
+    }
 
     io.emit('gameState', gameState);
     res.json(gameState);
@@ -270,19 +301,21 @@ app.post('/api/recordEvent', (req, res) => {
 
     // Log to Google Sheets if enabled
     if (ENABLE_SHEETS_LOGGING) {
-        sheetsLogger.logEvent(SPREADSHEET_ID, SHEET_NAME, {
+        const payload = {
             eventType: eventType,
             team: team,
             player: player,
             isFastBreak: isFastBreak || false
-        }).catch(err => console.error('Failed to log event:', err));
+        };
+        console.log('Logging event to Google Sheets:', payload);
+        sheetsLogger.logEvent(SPREADSHEET_ID, SHEET_NAME, payload).catch(err => console.error('Failed to log event:', err));
     }
 
     io.emit('gameState', gameState);
     res.json(gameState);
 });
 
-app.post('/api/recordShot', (req, res) => {
+app.post('/api/recordShot', async (req, res) => {
     const { team, player, zone, points, made, assist, assistTeam, isFastBreak, isSecondChance, isPaint } = req.body;
     const teamKey = team === 'home' ? 'team1' : 'team2';
     const shotType = points === 3 ? 'three' : 'two';
@@ -306,8 +339,8 @@ app.post('/api/recordShot', (req, res) => {
     }
 
     // Log to Google Sheets if enabled
-    if (ENABLE_SHEETS_LOGGING && made) {
-        sheetsLogger.logShot(SPREADSHEET_ID, SHEET_NAME, {
+    if (ENABLE_SHEETS_LOGGING) {
+        const payload = {
             team: team,
             player: player,
             points: points,
@@ -317,7 +350,29 @@ app.post('/api/recordShot', (req, res) => {
             isFastBreak: isFastBreak || false,
             isSecondChance: isSecondChance || false,
             isPaint: isPaint || false
-        }).catch(err => console.error('Failed to log shot:', err));
+        };
+        console.log('Logging shot to Google Sheets:', payload);
+        try {
+            const result = await sheetsLogger.logShot(SPREADSHEET_ID, SHEET_NAME, payload);
+            // If it was a missed shot, remember which sheet row was used so rebounds can update it
+            if (!made && result && result.updatedRange) {
+                const m = String(result.updatedRange).match(/!A(\d+):F\d+/);
+                if (m && m[1]) {
+                    const rowNum = parseInt(m[1], 10);
+                    gameState.lastMissedShot = {
+                        team: team,
+                        player: player,
+                        timestamp: Date.now(),
+                        sheetRow: rowNum,
+                        shooter: (team === 'home' ? `H${player}` : `A${player}`),
+                        event: `${points === 2 ? '2NO' : '3NO'}`
+                    };
+                    console.log('Recorded lastMissedShot with sheetRow:', gameState.lastMissedShot);
+                }
+            }
+        } catch (err) {
+            console.error('Failed to log shot:', err);
+        }
     }
 
     io.emit('scoreUpdate', gameState);
@@ -377,4 +432,49 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+});
+
+// Diagnostics endpoint: report last non-empty row in the sheet
+app.get('/api/sheetDiagnostics', async (req, res) => {
+    if (!ENABLE_SHEETS_LOGGING) return res.status(400).json({ error: 'Sheets logging not enabled' });
+    try {
+        const lastRow = await sheetsLogger.findLastNonEmptyRow(SPREADSHEET_ID, SHEET_NAME, 2000);
+        res.json({ lastNonEmptyRow: lastRow });
+    } catch (err) {
+        console.error('sheetDiagnostics error:', err);
+        res.status(500).json({ error: 'Diagnostics failed' });
+    }
+});
+
+// Record a single free throw
+app.post('/api/recordFreeThrow', (req, res) => {
+    const { team, player, made, isSecondChance } = req.body;
+    const teamKey = team === 'home' ? 'team1' : 'team2';
+
+    // Update player and team stats
+    if (made) {
+        gameState[teamKey].score += 1;
+        if (gameState[teamKey].shotStats && gameState[teamKey].shotStats.made) {
+            // there's no separate free throw counters currently; you can add if desired
+        }
+    }
+
+    const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
+    if (playerIndex >= 0) {
+        if (made) {
+            gameState[teamKey].players[playerIndex].points += 1;
+        }
+        gameState[teamKey].players[playerIndex].attempts++;
+        if (made) gameState[teamKey].players[playerIndex].made++;
+    }
+
+    // Log to Google Sheets if enabled
+    if (ENABLE_SHEETS_LOGGING) {
+        const payload = { team, player, made: !!made };
+        console.log('Logging free throw to Google Sheets:', payload);
+        sheetsLogger.logFreeThrow(SPREADSHEET_ID, SHEET_NAME, payload).catch(err => console.error('Failed to log free throw:', err));
+    }
+
+    io.emit('scoreUpdate', gameState);
+    res.json(gameState);
 });

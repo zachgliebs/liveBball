@@ -97,10 +97,10 @@ Data appended to Google Sheet row
 
 Example rows:
 ```
-| H23 | 2 YES | A34 | FALSE | FALSE | FALSE |  (2-point made, assist by A34, no fast break)
-| H23 | 3 NO  |     | FALSE | FALSE | FALSE |  (3-point miss, no rebound/assist)
-| A12 | STL   |     | FALSE | FALSE | FALSE |  (Steal recorded)
-| H5  | TO    |     | FALSE | FALSE | FALSE |  (Turnover recorded)
+| H23 | 2YES | A34 | FALSE | FALSE | FALSE |  (2-point made, assist by A34, no fast break)
+| A12 | 3NO  | H21 | FALSE | FALSE | FALSE |  (3-point miss, defensive rebound by H21)
+| A12 | STL  |     | FALSE | FALSE | FALSE |  (Steal recorded)
+| H5  | TO   |     | FALSE | FALSE | FALSE |  (Turnover recorded)
 ```
 
 ## Environment Configuration
