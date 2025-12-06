@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "bootstrap": "^5.3.8",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "googleapis": "^166.0.0",

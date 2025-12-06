@@ -3,6 +3,8 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const cookieParser = require('cookie-parser');
 const sheetsLogger = require('./sheetsLogger');
 
 const app = express();
@@ -82,13 +84,141 @@ let gameState = {
 };
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: true,
+    credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
+
+// Protected route must come BEFORE static files
+app.get('/v1.html', checkAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'v1.html'));
+});
+
+// Now serve static files
 app.use(express.static(__dirname));
+
+// Authentication setup
+const USERS_FILE = path.join(__dirname, 'users.json');
+const ADMIN_KEY = process.env.ADMIN_KEY || 'BlueGreenBullshit'; // Change in production
+
+function loadUsers() {
+    try {
+        const data = fs.readFileSync(USERS_FILE, 'utf8');
+        return JSON.parse(data);
+    } catch (err) {
+        console.error('Error reading users file:', err);
+        return { users: [] };
+    }
+}
+
+function saveUsers(data) {
+    try {
+        fs.writeFileSync(USERS_FILE, JSON.stringify(data, null, 2), 'utf8');
+        return true;
+    } catch (err) {
+        console.error('Error writing users file:', err);
+        return false;
+    }
+}
+
+// Simple token-based auth (in production, use proper JWT)
+function generateToken(username) {
+    return Buffer.from(username + ':' + Date.now()).toString('base64');
+}
+
+function verifyToken(token) {
+    try {
+        const decoded = Buffer.from(token, 'base64').toString('utf8');
+        const [username] = decoded.split(':');
+        return username;
+    } catch (err) {
+        return null;
+    }
+}
+
+// Authentication middleware to check for valid token
+function checkAuth(req, res, next) {
+    const token = req.cookies.authToken || req.headers['authorization']?.replace('Bearer ', '') || req.query.token;
+    
+    if (!token) {
+        return res.redirect('/');
+    }
+
+    const username = verifyToken(token);
+    if (!username) {
+        res.clearCookie('authToken');
+        return res.redirect('/');
+    }
+
+    req.user = { username };
+    next();
+}
 
 // Routes
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'v1.html'));
+    res.sendFile(path.join(__dirname, 'login.html'));
+});
+
+app.get('/addnewuser', (req, res) => {
+    res.sendFile(path.join(__dirname, 'addnewuser.html'));
+});
+
+// Authentication endpoints
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password required' });
+    }
+
+    const usersData = loadUsers();
+    const user = usersData.users.find(u => u.username === username && u.password === password);
+
+    if (!user) {
+        return res.status(401).json({ message: 'Invalid username or password' });
+    }
+
+    const token = generateToken(username);
+    res.cookie('authToken', token, { 
+        httpOnly: true, 
+        secure: false, // Set to true if using HTTPS
+        sameSite: 'Strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+    res.json({ message: 'Login successful', token });
+});
+
+app.post('/api/register', (req, res) => {
+    const { username, password, adminKey } = req.body;
+
+    if (adminKey !== ADMIN_KEY) {
+        return res.status(403).json({ message: 'Invalid admin key' });
+    }
+
+    if (!username || !password) {
+        return res.status(400).json({ message: 'Username and password required' });
+    }
+
+    const usersData = loadUsers();
+    
+    if (usersData.users.some(u => u.username === username)) {
+        return res.status(409).json({ message: 'Username already exists' });
+    }
+
+    usersData.users.push({ username, password });
+    
+    if (saveUsers(usersData)) {
+        res.json({ message: 'User added successfully' });
+    } else {
+        res.status(500).json({ message: 'Failed to save user' });
+    }
+});
+
+app.post('/api/logout', (req, res) => {
+    res.clearCookie('authToken');
+    res.json({ message: 'Logged out successfully' });
 });
 
 // API endpoints

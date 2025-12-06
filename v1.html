@@ -104,8 +104,10 @@
         <div class="court-container">
             <img src="court.png" alt="Basketball Court" class="court-image">
             <div class="court-zone" id="home-three">3</div>
+            <div class="court-zone paint-zone" id="home-paint">paint</div>
             <div class="court-zone" id="home-two">2</div>
             <div class="court-zone" id="away-two">2</div>
+            <div class="court-zone paint-zone" id="away-paint">paint</div>
             <div class="court-zone" id="away-three">3</div>
         </div>
 
@@ -124,6 +126,9 @@
                 <button class="btn btn-secondary" onclick="showFreeThrowSetupDialog()">Free Throw</button>
             </div>
         </div>
+
+        <!-- Logout Button -->
+        <button class="btn btn-dark position-fixed" style="right: 20px; bottom: 20px;" onclick="logout()">Logout</button>
 
         <!-- Shot Dialog -->
         <div class="overlay" id="overlay"></div>
@@ -563,7 +568,12 @@
 
         // Initialize roster management when page loads
         document.addEventListener('DOMContentLoaded', initializeRosterManagement);
-        const socket = io();
+        
+        // Socket.io connection (server will validate auth via cookies)
+        const authToken = localStorage.getItem('authToken'); // For backwards compatibility
+        const socket = io({
+            query: { token: authToken }
+        });
 
         // DOM elements
         const team1Score = document.querySelector('#team1-score');
@@ -988,7 +998,7 @@
                 assistTeam: currentAssist ? currentAssist.team : null,
                 isFastBreak: isFastBreak || false,
                 isSecondChance: isSecondChance || false,
-                isPaint: false
+                isPaint: pendingShotInfo.zone.includes('paint')
             };
 
             // Send to server
@@ -1100,7 +1110,7 @@
                         assistTeam: team,
                         isFastBreak: false,
                         isSecondChance: false,
-                        isPaint: false
+                        isPaint: pendingShotInfo.zone.includes('paint')
                     };
 
                     fetch('/api/recordShot', {
@@ -1485,10 +1495,19 @@
             const descriptions = {
                 'home-three': 'Home 3PT',
                 'home-two': 'Home 2PT',
+                'home-paint': 'Home Paint',
                 'away-three': 'Away 3PT',
-                'away-two': 'Away 2PT'
+                'away-two': 'Away 2PT',
+                'away-paint': 'Away Paint'
             };
             return descriptions[zoneId] || zoneId;
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            fetch('/api/logout', { method: 'POST' }).then(() => {
+                window.location.href = '/';
+            });
         }
 
         // End of script

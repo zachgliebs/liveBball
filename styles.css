@@ -66,6 +66,15 @@
     width: 28%;
 }
 
+#home-paint {
+    left: 4%;
+    width: 18%;
+    font-size: 0.9rem;
+    top: 50%;
+    height: 21.6%;
+    transform: translateY(-50%);
+}
+
 #home-three {
     left: 30%;
     width: 18%;
@@ -76,9 +85,23 @@
     width: 18%;
 }
 
+#away-paint {
+    left: 78%;
+    width: 18%;
+    font-size: 0.9rem;
+    top: 50%;
+    height: 21.6%;
+    transform: translateY(-50%);
+}
+
 #away-two {
     left: 70%;
     width: 28%;
+}
+
+.paint-zone {
+    border: 2px dashed rgba(255, 0, 0, 0.5);
+    z-index: 10;
 }
 
 .active-players {

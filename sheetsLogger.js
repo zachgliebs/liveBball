@@ -36,7 +36,7 @@ async function updateRow(spreadsheetId, sheetName, rowNumber, rowValues) {
         const response = await sheetsClient.spreadsheets.values.update({
             spreadsheetId: spreadsheetId,
             range: range,
-            valueInputOption: 'RAW',
+            valueInputOption: 'USER_ENTERED', // Changed from RAW to properly handle booleans
             resource: {
                 values: [rowValues]
             }
@@ -83,17 +83,14 @@ async function logShot(spreadsheetId, sheetName, shotData) {
         // Column 3: Assist or Rebound (if assist exists)
         const assister = assist && assistTeam ? formatPlayer(assistTeam, assist) : '';
         
-        // Column 4: Fast Break (TRUE/FALSE)
-            // Column 4: Fast Break (boolean)
-            const fastBreakBool = !!isFastBreak;
+        // Column 4: Fast Break (boolean - true/false, not string)
+        const fastBreakBool = isFastBreak === true;
         
-        // Column 5: Second Chance (TRUE/FALSE)
-            // Column 5: Second Chance (boolean)
-            const secondChanceBool = !!isSecondChance;
+        // Column 5: Second Chance (boolean - true/false, not string)
+        const secondChanceBool = isSecondChance === true;
         
-        // Column 6: Paint (TRUE/FALSE)
-            // Column 6: Paint (boolean)
-            const paintBool = !!isPaint;
+        // Column 6: Paint (boolean - true/false, not string)
+        const paintBool = isPaint === true;
 
             const values = [
                 [shooter, event, assister, fastBreakBool, secondChanceBool, paintBool]
@@ -105,25 +102,26 @@ async function logShot(spreadsheetId, sheetName, shotData) {
                 console.warn('sheetsLogger: event value not in whitelist, sending anyway:', event);
             }
 
-            console.log('Appending row to Google Sheet:', values[0]);
-            const response = await sheetsClient.spreadsheets.values.append({
+            console.log('Writing shot row to Google Sheet:', values[0]);
+            // Get the next empty row and write to it explicitly
+            const nextRow = await getNextEmptyRow(spreadsheetId, sheetName);
+            const range = `${sheetName}!A${nextRow}:F${nextRow}`;
+            const response = await sheetsClient.spreadsheets.values.update({
                 spreadsheetId: spreadsheetId,
-                range: `${sheetName}!A2:F`,
-                valueInputOption: 'RAW',
+                range: range,
+                valueInputOption: 'USER_ENTERED', // Changed from RAW to properly handle booleans
                 resource: {
                     values: values
                 }
             });
 
-            console.log(`Play-by-play logged: ${shooter} - ${event}`);
+            console.log(`Play-by-play logged: ${shooter} - ${event} to row ${nextRow}`);
             if (response && response.data) {
-                console.log('Sheets append response:', response.data.updates || response.data);
-                if (response.data.updates && response.data.updates.updatedRange) {
-                    console.log('Sheets append updatedRange:', response.data.updates.updatedRange);
-                    // Return the updatedRange so callers can track which row was written
-                    return { updatedRange: response.data.updates.updatedRange };
-                }
-                return { updatedRange: null };
+                console.log('Sheets update response:', response.data);
+                const updatedRange = response.data.updatedRange || range;
+                console.log('Sheets updatedRange:', updatedRange);
+                // Return the updatedRange so callers can track which row was written
+                return { updatedRange: updatedRange };
             }
             return { updatedRange: null };
     } catch (error) {
@@ -169,18 +167,19 @@ async function logEvent(spreadsheetId, sheetName, eventData) {
             [actor, eventCode, assister, fastBreak, secondChance, paint]
         ];
 
-        console.log('Appending event row to Google Sheet:', values[0]);
-        const response = await sheetsClient.spreadsheets.values.append({
-            spreadsheetId: spreadsheetId,
-            range: `${sheetName}!A2:F`,
-            valueInputOption: 'RAW',
-            resource: {
-                values: values
-            }
-        });
-
-        console.log(`Event logged: ${actor} - ${eventCode}`);
-        if (response && response.data) console.log('Sheets append response:', response.data.updates || response.data);
+            console.log('Writing event row to Google Sheet:', values[0]);
+            // Get the next empty row and write to it explicitly
+            const nextRow = await getNextEmptyRow(spreadsheetId, sheetName);
+            const range = `${sheetName}!A${nextRow}:F${nextRow}`;
+            const response = await sheetsClient.spreadsheets.values.update({
+                spreadsheetId: spreadsheetId,
+                range: range,
+                valueInputOption: 'USER_ENTERED', // Changed from RAW to properly handle booleans
+                resource: {
+                    values: values
+                }
+            });        console.log(`Event logged: ${actor} - ${eventCode} to row ${nextRow}`);
+        if (response && response.data) console.log('Sheets update response:', response.data);
         return true;
     } catch (error) {
         console.error('Error logging event to Google Sheets:', error.message);
@@ -221,18 +220,21 @@ async function logFreeThrow(spreadsheetId, sheetName, ftData) {
             [shooter, event, assister, fastBreakBool, secondChanceBool, paintBool]
         ];
 
-        console.log('Appending free throw row to Google Sheet:', values[0]);
-        const response = await sheetsClient.spreadsheets.values.append({
+        console.log('Writing free throw row to Google Sheet:', values[0]);
+        // Get the next empty row and write to it explicitly
+        const nextRow = await getNextEmptyRow(spreadsheetId, sheetName);
+        const range = `${sheetName}!A${nextRow}:F${nextRow}`;
+        const response = await sheetsClient.spreadsheets.values.update({
             spreadsheetId: spreadsheetId,
-            range: `${sheetName}!A2:F`,
-            valueInputOption: 'RAW',
+            range: range,
+            valueInputOption: 'USER_ENTERED', // Changed from RAW to properly handle booleans
             resource: {
                 values: values
             }
         });
 
-        console.log(`Free throw logged: ${shooter} - ${event}`);
-        if (response && response.data) console.log('Sheets append response:', response.data.updates || response.data);
+        console.log(`Free throw logged: ${shooter} - ${event} to row ${nextRow}`);
+        if (response && response.data) console.log('Sheets update response:', response.data);
         return true;
     } catch (error) {
         console.error('Error logging free throw to Google Sheets:', error.message);
@@ -268,35 +270,58 @@ module.exports = {
     logEvent,
     logFreeThrow,
     logRebound,
-    updateRow
+    updateRow,
+    findLastNonEmptyRow,
+    getNextEmptyRow
 };
 
-// Export diagnostic helper
-module.exports.findLastNonEmptyRow = findLastNonEmptyRow;
+// Cache for the next empty row (reset on server restart)
+let cachedNextRow = null;
 
-// Find the last non-empty row within A1:F{maxRows}
-async function findLastNonEmptyRow(spreadsheetId, sheetName, maxRows = 2000) {
+// Find the first empty row by checking column H for "T" values, starting at row 2
+async function findNextEmptyRow(spreadsheetId, sheetName) {
     if (!sheetsClient) return null;
     try {
-        const range = `${sheetName}!A1:F${maxRows}`;
+        const range = `${sheetName}!H:H`; // Get entire column H which has "T" for filled rows
         const response = await sheetsClient.spreadsheets.values.get({
             spreadsheetId: spreadsheetId,
             range: range
         });
         const rows = (response && response.data && response.data.values) || [];
-        // Find last row index that has any non-empty cell
-        let last = 0;
-        for (let i = rows.length - 1; i >= 0; i--) {
+        
+        // Starting at row 2 (index 1), find first row where H is not "T"
+        for (let i = 1; i < rows.length; i++) { // Start at index 1 (row 2)
             const row = rows[i];
-            const hasContent = row.some(cell => cell !== null && String(cell).trim() !== '');
-            if (hasContent) {
-                last = i + 1; // 1-based
-                break;
+            const cellValue = row && row[0] ? String(row[0]).trim() : '';
+            if (cellValue !== 'T') {
+                const emptyRow = i + 1; // convert to 1-based row number
+                console.log(`findNextEmptyRow: First empty row found at ${emptyRow}`);
+                return emptyRow;
             }
         }
-        return last;
+        
+        // If all rows have "T", next empty is after the last row
+        const nextRow = rows.length + 1;
+        console.log(`findNextEmptyRow: All rows filled, next empty row is ${nextRow}`);
+        return nextRow;
     } catch (err) {
-        console.error('Error finding last non-empty row:', err.message || err);
-        return null;
+        console.error('Error finding next empty row:', err.message || err);
+        return 2; // Default to row 2 on error
     }
+}
+
+// Get the next empty row number for appending (uses cache after first call)
+async function getNextEmptyRow(spreadsheetId, sheetName) {
+    if (cachedNextRow === null) {
+        cachedNextRow = await findNextEmptyRow(spreadsheetId, sheetName);
+    }
+    const rowToUse = cachedNextRow;
+    cachedNextRow++; // Increment for next call
+    return rowToUse;
+}
+
+// Legacy function for compatibility
+async function findLastNonEmptyRow(spreadsheetId, sheetName, maxRows = 2000) {
+    const nextEmpty = await findNextEmptyRow(spreadsheetId, sheetName);
+    return nextEmpty ? nextEmpty - 1 : 1;
 }
