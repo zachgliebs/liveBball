@@ -278,7 +278,10 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Play by Play</h5>
-                    <small class="text-muted">Chronological</small>
+                    <div class="d-flex align-items-center gap-2">
+                        <small class="text-muted">Chronological</small>
+                        <button class="btn btn-sm btn-outline-primary" onclick="fetchPlayByPlayFromSheet()">Refresh</button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <ul id="pbp-list" class="list-unstyled mb-0"></ul>
