@@ -18,7 +18,7 @@ const io = socketIo(server, {
 
 // Google Sheets configuration
 const SPREADSHEET_ID = '12gFXKBy-Ywq3ibGHAm9yFN1Iglqy9zr5jbD8squxJCE';
-const SHEET_NAME = 'EntryTesting';
+const SHEET_NAME = 'Entry';
 const ENABLE_SHEETS_LOGGING = SPREADSHEET_ID !== null;
 
 // Initialize Google Sheets logger if configured
@@ -330,9 +330,10 @@ app.post('/api/recordRebound', async (req, res) => {
                 const rebounder = (team === 'home' ? 'H' : 'A') + player;
                 const fastBreak = false;
                 const secondChance = false;
+                const placeholder = '';
                 const paint = false;
 
-                const rowValues = [shooter, event, rebounder, fastBreak, secondChance, paint];
+                const rowValues = [shooter, event, rebounder, fastBreak, secondChance, placeholder, paint];
                 console.log(`Updating missed-shot row ${rowNum} with rebounder ${rebounder}:`, rowValues);
                 await sheetsLogger.updateRow(SPREADSHEET_ID, SHEET_NAME, rowNum, rowValues);
 
@@ -399,7 +400,7 @@ app.post('/api/recordAssist', (req, res) => {
 });
 
 app.post('/api/recordEvent', (req, res) => {
-    const { eventType, team, player, isFastBreak } = req.body;
+    const { eventType, team, player, isFastBreak, turnoverTeam, turnoverPlayer, stealByTeam, stealByPlayer } = req.body;
     const teamKey = team === 'home' ? 'team1' : 'team2';
 
     // Defensive: only accept known event types
@@ -408,16 +409,22 @@ app.post('/api/recordEvent', (req, res) => {
         return res.status(400).json({ error: 'Invalid event type' });
     }
 
-    // Update team stats
-    gameState[teamKey].stats[eventType + 's']++;
+    // Update team/player stats (steals are credited to stealByTeam/player)
+    let statsTeamKey = teamKey;
+    let statsPlayer = player;
+    if (eventType === 'steal') {
+        statsTeamKey = stealByTeam ? (stealByTeam === 'home' ? 'team1' : 'team2') : teamKey;
+        statsPlayer = stealByPlayer || player;
+    }
 
-    // Update player stats
-    const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
-    if (playerIndex >= 0) {
-        if (!gameState[teamKey].players[playerIndex][eventType + 's']) {
-            gameState[teamKey].players[playerIndex][eventType + 's'] = 0;
+    gameState[statsTeamKey].stats[eventType + 's']++;
+
+    const statsPlayerIndex = gameState[statsTeamKey].players.findIndex(p => p.number === statsPlayer);
+    if (statsPlayerIndex >= 0) {
+        if (!gameState[statsTeamKey].players[statsPlayerIndex][eventType + 's']) {
+            gameState[statsTeamKey].players[statsPlayerIndex][eventType + 's'] = 0;
         }
-        gameState[teamKey].players[playerIndex][eventType + 's']++;
+        gameState[statsTeamKey].players[statsPlayerIndex][eventType + 's']++;
     }
 
     // Track steals for fast break detection
@@ -435,7 +442,11 @@ app.post('/api/recordEvent', (req, res) => {
             eventType: eventType,
             team: team,
             player: player,
-            isFastBreak: isFastBreak || false
+            isFastBreak: isFastBreak || false,
+            turnoverTeam: turnoverTeam || null,
+            turnoverPlayer: turnoverPlayer || null,
+            stealByTeam: stealByTeam || null,
+            stealByPlayer: stealByPlayer || null
         };
         console.log('Logging event to Google Sheets:', payload);
         sheetsLogger.logEvent(SPREADSHEET_ID, SHEET_NAME, payload).catch(err => console.error('Failed to log event:', err));
@@ -486,7 +497,7 @@ app.post('/api/recordShot', async (req, res) => {
             const result = await sheetsLogger.logShot(SPREADSHEET_ID, SHEET_NAME, payload);
             // If it was a missed shot, remember which sheet row was used so rebounds can update it
             if (!made && result && result.updatedRange) {
-                const m = String(result.updatedRange).match(/!A(\d+):F\d+/);
+                const m = String(result.updatedRange).match(/!A(\d+):G\d+/);
                 if (m && m[1]) {
                     const rowNum = parseInt(m[1], 10);
                     gameState.lastMissedShot = {
@@ -573,6 +584,36 @@ app.get('/api/sheetDiagnostics', async (req, res) => {
     } catch (err) {
         console.error('sheetDiagnostics error:', err);
         res.status(500).json({ error: 'Diagnostics failed' });
+    }
+});
+
+// Play-by-play: fetch recent rows
+app.get('/api/pbp', async (req, res) => {
+    if (!ENABLE_SHEETS_LOGGING) return res.status(400).json({ error: 'Sheets logging not enabled' });
+    const limitParam = parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : null; // null => no cap
+    try {
+        const plays = await sheetsLogger.fetchPlayByPlay(SPREADSHEET_ID, SHEET_NAME, limit);
+        res.json({ plays });
+    } catch (err) {
+        console.error('pbp fetch error:', err);
+        res.status(500).json({ error: 'Failed to fetch play-by-play' });
+    }
+});
+
+// Play-by-play: edit a row
+app.post('/api/pbp/update', async (req, res) => {
+    if (!ENABLE_SHEETS_LOGGING) return res.status(400).json({ error: 'Sheets logging not enabled' });
+    const { rowNumber, values } = req.body;
+    if (!rowNumber || !Array.isArray(values) || values.length < 7) {
+        return res.status(400).json({ error: 'rowNumber and 7 values required' });
+    }
+    try {
+        await sheetsLogger.updateRow(SPREADSHEET_ID, SHEET_NAME, rowNumber, values.slice(0, 7));
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('pbp update error:', err);
+        res.status(500).json({ error: 'Failed to update play' });
     }
 });
 

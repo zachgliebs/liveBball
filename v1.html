@@ -27,7 +27,7 @@
         </div>
 
         <!-- Roster Management -->
-        <div class="row mb-4">
+        <div class="row mb-4 summary-section">
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
@@ -39,6 +39,10 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <input type="text" id="home-team-name" class="form-control mb-2" placeholder="Enter team name">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <label class="form-label mb-0 small" for="home-team-color">Team color</label>
+                                <input type="color" id="home-team-color" class="form-control form-control-color" value="#0d6efd" aria-label="Home team color">
+                            </div>
                             <textarea id="home-roster" class="form-control" rows="5" placeholder="Enter roster (one player per line)&#10;Format: number lastname&#10;Example:&#10;23 James&#10;34 Durant"></textarea>
                         </div>
                         <div class="btn-group">
@@ -60,6 +64,10 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <input type="text" id="away-team-name" class="form-control mb-2" placeholder="Enter team name">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <label class="form-label mb-0 small" for="away-team-color">Team color</label>
+                                <input type="color" id="away-team-color" class="form-control form-control-color" value="#dc3545" aria-label="Away team color">
+                            </div>
                             <textarea id="away-roster" class="form-control" rows="5" placeholder="Enter roster (one player per line)&#10;Format: number lastname&#10;Example:&#10;23 James&#10;34 Durant"></textarea>
                         </div>
                         <div class="btn-group">
@@ -73,7 +81,7 @@
         </div>
 
         <!-- Active Players -->
-        <div class="row mb-4">
+        <div class="row mb-4 summary-section">
             <div class="col-md-6">
                 <div class="active-players">
                     <h4>Home Team On Court</h4>
@@ -151,12 +159,13 @@
         <div class="dialog" id="rebound-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
             <h4>Rebound</h4>
             <div class="btn-group w-100 mb-3">
-                <button class="btn btn-primary" onclick="selectReboundType('offense')">Offense</button>
-                <button class="btn btn-primary" onclick="selectReboundType('defense')">Defense</button>
+                <button class="btn btn-primary" id="rebound-offense-btn" onclick="selectReboundType('offense')">Offense</button>
+                <button class="btn btn-primary" id="rebound-defense-btn" onclick="selectReboundType('defense')">Defense</button>
             </div>
             <div id="rebound-players" class="d-grid gap-2 mb-3">
                 <!-- Players will be added dynamically -->
             </div>
+            <button type="button" class="btn btn-outline-secondary w-100 mb-2" onclick="skipRebound()">No rebound</button>
             <button type="button" class="btn btn-secondary w-100" onclick="closeReboundDialog()">Cancel</button>
         </div>
 
@@ -185,11 +194,13 @@
             <h4 id="event-title">Event</h4>
             <div class="btn-group w-100 mb-3">
                 <button class="btn btn-primary" onclick="selectEventTeam('home')">Home</button>
-                <button class="btn btn-primary" onclick="selectEventTeam('away')">Away</button>
+                <button class="btn btn-primary" onclick="selectEventTeam('home')" id="event-home-btn">Home</button>
+                <button class="btn btn-primary" onclick="selectEventTeam('away')" id="event-away-btn">Away</button>
             </div>
             <div id="event-players" class="d-grid gap-2 mb-3">
                 <!-- Players will be added dynamically -->
             </div>
+            <button id="event-skip-btn" type="button" class="btn btn-outline-secondary w-100 mb-2" style="display: none;" onclick="skipEventPlayer()">Skip stealer/blocker</button>
             <button type="button" class="btn btn-secondary w-100" onclick="closeEventDialog()">Cancel</button>
         </div>
 
@@ -200,8 +211,8 @@
             <div class="mb-2">
                 <label class="form-label">Team</label>
                 <div>
-                    <button class="btn btn-outline-primary me-2" onclick="ftSelectTeam('home')">Home</button>
-                    <button class="btn btn-outline-primary" onclick="ftSelectTeam('away')">Away</button>
+                    <button class="btn btn-outline-primary me-2" id="ft-home-btn" onclick="ftSelectTeam('home')">Home</button>
+                    <button class="btn btn-outline-primary" id="ft-away-btn" onclick="ftSelectTeam('away')">Away</button>
                 </div>
             </div>
             <div class="mb-2">
@@ -250,21 +261,77 @@
         <!-- Navigation Tabs -->
         <ul class="nav nav-tabs mb-3">
             <li class="nav-item">
-                <a class="nav-link active" href="#">Summary</a>
+                <a class="nav-link active" href="#" id="tab-summary">Summary</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="#">Box Score</a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#">Play by Play</a>
+                <a class="nav-link" href="#" id="tab-pbp">Play by Play</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" href="#">Shot Chart</a>
             </li>
         </ul>
 
+        <div id="pbp-view" style="display: none;" class="pbp-container mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Play by Play</h5>
+                    <small class="text-muted">Chronological</small>
+                </div>
+                <div class="card-body">
+                    <ul id="pbp-list" class="list-unstyled mb-0"></ul>
+                    <div id="pbp-empty" class="text-muted">No plays yet.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Play-by-Play Edit Modal -->
+        <div class="dialog" id="pbp-edit-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001; width: 360px;">
+            <h5 class="mb-3">Edit Play <span id="pbp-edit-row-label" class="text-muted"></span></h5>
+            <div class="mb-2">
+                <label class="form-label">Column A (Player)</label>
+                <input type="text" id="pbp-edit-colA" class="form-control" placeholder="H23 or A11">
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Column B (Event)</label>
+                <select id="pbp-edit-colB" class="form-select">
+                    <option value="2YES">2YES</option>
+                    <option value="2NO">2NO</option>
+                    <option value="3YES">3YES</option>
+                    <option value="3NO">3NO</option>
+                    <option value="1YES">1YES</option>
+                    <option value="1NO">1NO</option>
+                    <option value="TO">TO</option>
+                    <option value="STL">STL</option>
+                    <option value="BLK">BLK</option>
+                </select>
+            </div>
+            <div class="mb-2">
+                <label class="form-label">Column C (Assist / Rebound / Steal)</label>
+                <input type="text" id="pbp-edit-colC" class="form-control" placeholder="H12 or A5">
+            </div>
+            <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" id="pbp-edit-fast">
+                <label class="form-check-label" for="pbp-edit-fast">Fast Break (Col D)</label>
+            </div>
+            <div class="form-check mb-1">
+                <input class="form-check-input" type="checkbox" id="pbp-edit-second">
+                <label class="form-check-label" for="pbp-edit-second">Second Chance (Col E)</label>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="pbp-edit-paint">
+                <label class="form-check-label" for="pbp-edit-paint">Paint (Col G)</label>
+            </div>
+            <div class="d-flex gap-2 justify-content-end">
+                <button class="btn btn-secondary" onclick="closeEditPlay()">Cancel</button>
+                <button class="btn btn-primary" onclick="saveEditedPlay()">Save</button>
+            </div>
+        </div>
+
         <!-- Team Stats Summary -->
-        <div class="row mb-4">
+        <div class="row mb-4 summary-section">
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
@@ -354,7 +421,7 @@
         </div>
 
         <!-- Player Stats Tables -->
-        <div class="table-responsive">
+        <div class="table-responsive summary-section">
             <div class="row">
                 <div class="col-md-6">
                     <h4>Home Team</h4>
@@ -419,6 +486,12 @@
             // Load saved rosters into dropdowns
             updateSavedRosters('home');
             updateSavedRosters('away');
+
+            // Initialize color pickers
+            initializeTeamColors();
+
+            // Initialize tabs
+            initializeTabs();
 
             // Add change listeners to dropdowns
             document.getElementById('home-saved-rosters').addEventListener('change', function() {
@@ -512,6 +585,255 @@
             }
         }
 
+        function initializeTabs() {
+            const summaryTab = document.getElementById('tab-summary');
+            const pbpTab = document.getElementById('tab-pbp');
+            if (summaryTab) {
+                summaryTab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showSummaryTab();
+                });
+            }
+            if (pbpTab) {
+                pbpTab.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showPbpTab();
+                });
+            }
+        }
+
+        function showSummaryTab() {
+            setActiveTab('summary');
+            document.querySelectorAll('.summary-section').forEach(el => el.style.display = '');
+            const pbpView = document.getElementById('pbp-view');
+            if (pbpView) pbpView.style.display = 'none';
+        }
+
+        function showPbpTab() {
+            setActiveTab('pbp');
+            document.querySelectorAll('.summary-section').forEach(el => el.style.display = 'none');
+            const pbpView = document.getElementById('pbp-view');
+            if (pbpView) pbpView.style.display = 'block';
+            fetchPlayByPlayFromSheet();
+        }
+
+        function setActiveTab(name) {
+            const summaryTab = document.getElementById('tab-summary');
+            const pbpTab = document.getElementById('tab-pbp');
+            if (summaryTab) summaryTab.classList.toggle('active', name === 'summary');
+            if (pbpTab) pbpTab.classList.toggle('active', name === 'pbp');
+        }
+
+        // Team color selection
+        let teamColors = { home: '#0d6efd', away: '#dc3545' };
+
+        function initializeTeamColors() {
+            try {
+                const stored = JSON.parse(localStorage.getItem('teamColors') || '{}');
+                teamColors = {
+                    home: stored.home || teamColors.home,
+                    away: stored.away || teamColors.away
+                };
+            } catch (e) {
+                console.warn('Failed to parse stored team colors');
+            }
+
+            const homeColorInput = document.getElementById('home-team-color');
+            const awayColorInput = document.getElementById('away-team-color');
+            if (homeColorInput) {
+                homeColorInput.value = teamColors.home;
+                homeColorInput.addEventListener('input', () => setTeamColor('home', homeColorInput.value));
+            }
+            if (awayColorInput) {
+                awayColorInput.value = teamColors.away;
+                awayColorInput.addEventListener('input', () => setTeamColor('away', awayColorInput.value));
+            }
+
+            applyTeamColors();
+        }
+
+        function setTeamColor(team, value) {
+            teamColors[team] = value;
+            localStorage.setItem('teamColors', JSON.stringify(teamColors));
+            applyTeamColors();
+        }
+
+        function applyTeamColors() {
+            document.documentElement.style.setProperty('--home-color', teamColors.home);
+            document.documentElement.style.setProperty('--away-color', teamColors.away);
+
+            document.querySelectorAll('.player-slot').forEach(slot => {
+                const team = slot.dataset.team;
+                const color = teamColors[team];
+                if (color) {
+                    slot.style.borderColor = color;
+                    slot.style.backgroundColor = hexToRgba(color, 0.12);
+                    slot.style.color = '#000';
+                }
+            });
+
+            // Color home/away buttons in dialogs
+            styleTeamButton(document.getElementById('event-home-btn'), teamColors.home);
+            styleTeamButton(document.getElementById('event-away-btn'), teamColors.away);
+            styleTeamButton(document.getElementById('ft-home-btn'), teamColors.home, true);
+            styleTeamButton(document.getElementById('ft-away-btn'), teamColors.away, true);
+        }
+
+        function styleTeamButton(el, color, outlined = false) {
+            if (!el || !color) return;
+            if (outlined) {
+                el.style.borderColor = color;
+                el.style.color = color;
+                el.style.backgroundColor = 'transparent';
+            } else {
+                el.style.backgroundColor = color;
+                el.style.borderColor = color;
+                el.style.color = '#fff';
+            }
+        }
+
+        function hexToRgba(hex, alpha) {
+            const normalized = hex.replace('#', '');
+            if (normalized.length !== 6) return `rgba(0,0,0,${alpha})`;
+            const r = parseInt(normalized.substring(0, 2), 16);
+            const g = parseInt(normalized.substring(2, 4), 16);
+            const b = parseInt(normalized.substring(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function styleReboundButtons(shooterTeam) {
+            const offenseBtn = document.getElementById('rebound-offense-btn');
+            const defenseBtn = document.getElementById('rebound-defense-btn');
+            if (!offenseBtn || !defenseBtn) return;
+            const offenseColor = teamColors[shooterTeam];
+            const defenseColor = teamColors[shooterTeam === 'home' ? 'away' : 'home'];
+            styleTeamButton(offenseBtn, offenseColor, false);
+            styleTeamButton(defenseBtn, defenseColor, false);
+        }
+
+        function formatPlayerLabel(team, player) {
+            if (!player) return 'Unknown';
+            return `${team === 'home' ? 'H' : 'A'}${player}`;
+        }
+
+        function buildShotDescription(payload, assistPlayer) {
+            const shooterLabel = formatPlayerLabel(payload.team, payload.player);
+            const shotType = payload.points === 3 ? '3PT' : (payload.points === 1 ? 'FT' : '2PT');
+            let desc;
+            if (payload.made) {
+                desc = `Made ${shotType} by ${shooterLabel}`;
+                if (assistPlayer) desc += ` (assist ${assistPlayer})`;
+            } else {
+                desc = `Missed ${shotType} by ${shooterLabel}`;
+            }
+            return desc;
+        }
+
+        function formatPlayDescription(vals) {
+            const [colA, colB, colC] = vals;
+            const team = colA && colA.startsWith('H') ? 'home' : (colA && colA.startsWith('A') ? 'away' : null);
+            const player = colA ? colA.substring(1) : '';
+            const playerLabel = team ? formatPlayerLabel(team, player) : (colA || '');
+            if (!colB) return `${playerLabel}`;
+            const event = colB.toUpperCase();
+            if (['2YES','3YES','1YES'].includes(event)) return `${playerLabel} made ${event}`;
+            if (['2NO','3NO','1NO'].includes(event)) return `${playerLabel} missed ${event}`;
+            if (event === 'TO') return `${playerLabel} turnover`;
+            if (event === 'STL') return `${playerLabel} steal`;
+            if (event === 'BLK') return `${playerLabel} block`;
+            return `${playerLabel} ${event}`;
+        }
+
+        function formatPlayNote(vals) {
+            const colC = vals[2];
+            const fast = vals[3] === true || String(vals[3]).toLowerCase() === 'true';
+            const second = vals[4] === true || String(vals[4]).toLowerCase() === 'true';
+            const paint = vals[6] === true || String(vals[6]).toLowerCase() === 'true';
+            const parts = [];
+            if (colC) parts.push(`C: ${colC}`);
+            if (fast) parts.push('Fast break');
+            if (second) parts.push('Second chance');
+            if (paint) parts.push('Paint');
+            return parts.join(' · ');
+        }
+
+        function refreshPbpIfVisible() {
+            const pbpTab = document.getElementById('tab-pbp');
+            if (pbpTab && pbpTab.classList.contains('active')) {
+                fetchPlayByPlayFromSheet();
+            }
+        }
+
+        function openEditPlay(index) {
+            currentEditPlayIndex = index;
+            const play = playByPlay[index];
+            if (!play) return;
+            const vals = play.values || [];
+            document.getElementById('pbp-edit-row-label').textContent = `(Row ${play.rowNumber})`;
+            document.getElementById('pbp-edit-colA').value = vals[0] || '';
+            const colBSelect = document.getElementById('pbp-edit-colB');
+            if (colBSelect) {
+                const existing = Array.from(colBSelect.options).some(o => o.value === vals[1]);
+                if (!existing && vals[1]) {
+                    const opt = document.createElement('option');
+                    opt.value = vals[1];
+                    opt.textContent = vals[1];
+                    colBSelect.appendChild(opt);
+                }
+                colBSelect.value = vals[1] || '2YES';
+            }
+            document.getElementById('pbp-edit-colC').value = vals[2] || '';
+            const fast = vals[3] === true || String(vals[3]).toLowerCase() === 'true';
+            const second = vals[4] === true || String(vals[4]).toLowerCase() === 'true';
+            const paint = vals[6] === true || String(vals[6]).toLowerCase() === 'true';
+            document.getElementById('pbp-edit-fast').checked = fast;
+            document.getElementById('pbp-edit-second').checked = second;
+            document.getElementById('pbp-edit-paint').checked = paint;
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('pbp-edit-modal').style.display = 'block';
+        }
+
+        function closeEditPlay() {
+            currentEditPlayIndex = null;
+            document.getElementById('pbp-edit-modal').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        async function saveEditedPlay() {
+            if (currentEditPlayIndex === null) return;
+            const play = playByPlay[currentEditPlayIndex];
+            if (!play) return;
+            const colA = document.getElementById('pbp-edit-colA').value.trim();
+            const colB = document.getElementById('pbp-edit-colB').value.trim();
+            const colC = document.getElementById('pbp-edit-colC').value.trim();
+            const fast = document.getElementById('pbp-edit-fast').checked;
+            const second = document.getElementById('pbp-edit-second').checked;
+            const paint = document.getElementById('pbp-edit-paint').checked;
+            const values = [colA, colB, colC, fast, second, '', paint];
+            try {
+                await fetch('/api/pbp/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rowNumber: play.rowNumber, values })
+                });
+                closeEditPlay();
+                fetchPlayByPlayFromSheet();
+            } catch (e) {
+                console.error('Failed to save edited play', e);
+                alert('Failed to save play');
+            }
+        }
+
+        function buildFTSummary(results, team, player, isSecondChance) {
+            const shooterLabel = formatPlayerLabel(team, player);
+            const sequence = results.map(r => (r ? 'MAKE' : 'MISS')).join(', ');
+            const makes = results.filter(r => r === true).length;
+            const total = results.length;
+            const desc = `Free throws by ${shooterLabel}: ${sequence} (${makes}/${total})`;
+            const note = isSecondChance ? 'Second chance' : '';
+            return { desc, note };
+        }
+
         function loadRoster(team) {
             const textarea = document.getElementById(`${team}-roster`);
             const rosterText = textarea.value;
@@ -603,12 +925,18 @@
         let reboundOccurred = false;
         // Track the team that got the offensive rebound (for second chance detection)
         let offensiveReboundTeam = null;
+        // Track rebound context when triggered from blocks
+        let reboundContextTeam = null;
         // Track assist info for logging
         let currentAssist = null; // { team, player }
         // Track fast break detection
         let isFastBreak = false;
         // Track second chance detection
         let isSecondChance = false;
+
+        // Play-by-play log (fetched from sheet)
+        let playByPlay = [];
+        let currentEditPlayIndex = null;
 
         // Initialize court zones
         const courtZones = document.querySelectorAll('.court-zone');
@@ -750,6 +1078,78 @@
             document.getElementById(`${team}-3p-stats`).textContent = threePtPercentage + '%';
         }
 
+        async function fetchPlayByPlayFromSheet() {
+            try {
+                const res = await fetch('/api/pbp?limit=0');
+                const data = await res.json();
+                playByPlay = Array.isArray(data.plays) ? data.plays : [];
+                computeScoresForPbp(playByPlay);
+                renderPlayByPlay();
+            } catch (e) {
+                console.error('Failed to fetch PBP', e);
+            }
+        }
+
+        function computeScoresForPbp(plays) {
+            let home = 0;
+            let away = 0;
+            // plays are in sheet order (row asc); compute cumulative
+            plays.forEach(p => {
+                const vals = p.values || [];
+                const colA = vals[0] || '';
+                const colB = (vals[1] || '').toUpperCase();
+                const team = colA.startsWith('H') ? 'home' : (colA.startsWith('A') ? 'away' : null);
+                const made = colB.endsWith('YES');
+                if (team && made) {
+                    if (colB.startsWith('3')) {
+                        team === 'home' ? home += 3 : away += 3;
+                    } else if (colB.startsWith('2')) {
+                        team === 'home' ? home += 2 : away += 2;
+                    } else if (colB.startsWith('1')) {
+                        team === 'home' ? home += 1 : away += 1;
+                    }
+                }
+                p.homeScore = home;
+                p.awayScore = away;
+            });
+        }
+
+        function renderPlayByPlay() {
+            const list = document.getElementById('pbp-list');
+            const empty = document.getElementById('pbp-empty');
+            if (!list || !empty) return;
+            list.innerHTML = '';
+            if (!playByPlay || playByPlay.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+            // Ensure chronological order (sheet order)
+            const ordered = [...playByPlay].sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+            const latestIndex = ordered.length - 1;
+            ordered.forEach((play, idx) => {
+                const vals = play.values || [];
+                const rowNum = play.rowNumber;
+                const desc = formatPlayDescription(vals);
+                const note = formatPlayNote(vals);
+                const score = `${play.homeScore ?? '-'}-${play.awayScore ?? '-'}`;
+                const li = document.createElement('li');
+                li.className = 'pbp-line' + (idx === latestIndex ? ' pbp-latest' : '');
+                li.innerHTML = `
+                    <div>
+                        <div class="pbp-desc">${desc}</div>
+                        ${note ? `<div class="pbp-note">${note}</div>` : ''}
+                        <div class="text-muted" style="font-size: 0.85rem;">Row ${rowNum}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="pbp-score">${score}</div>
+                        <button class="btn btn-sm btn-outline-secondary mt-1" onclick="openEditPlay(${ordered.indexOf(play)})">Edit</button>
+                    </div>
+                `;
+                list.appendChild(li);
+            });
+        }
+
         function calculatePercentage(made, total) {
             if (total === 0) return 0;
             return Math.round((made / total) * 100);
@@ -842,6 +1242,8 @@
                     slot.classList.remove('extra-player');
                 }
             });
+
+            applyTeamColors();
         }
 
         function createPlayerRow(team, player, isActive) {
@@ -1029,6 +1431,7 @@
             // Default to showing offensive players (the team that took the shot)
             // Use pendingShotInfo which was set when the shot was recorded.
             if (pendingShotInfo) {
+                styleReboundButtons(pendingShotInfo.team);
                 selectReboundType('offense');
             }
         }
@@ -1036,6 +1439,7 @@
         function closeReboundDialog() {
             document.getElementById('rebound-dialog').style.display = 'none';
             document.getElementById('overlay').style.display = 'none';
+            reboundContextTeam = null;
         }
 
         function selectReboundType(type) {
@@ -1046,7 +1450,10 @@
 
             // Use pendingShotInfo (set when the shot was recorded) if available
             // because currentShotInfo is cleared when the shot dialog is closed.
-            const shooterTeam = (pendingShotInfo && pendingShotInfo.team) || currentShotInfo.team;
+            const shooterTeam = (pendingShotInfo && pendingShotInfo.team) || reboundContextTeam || currentShotInfo.team;
+
+            // Update offense/defense button colors each time type is selected
+            styleReboundButtons(shooterTeam);
 
             // If the user selects "offense", show players from the shooting team.
             // If they select "defense", show players from the opposite team.
@@ -1075,6 +1482,39 @@
                     }
                 }
             });
+        }
+
+        function skipRebound() {
+            // If there's a pending missed shot, log it without a rebounder
+            if (pendingShotInfo && pendingShotInfo.made === false) {
+                const payload = {
+                    team: pendingShotInfo.team,
+                    player: pendingShotInfo.player,
+                    zone: pendingShotInfo.zone,
+                    points: pendingShotInfo.points,
+                    made: false,
+                    assist: null,
+                    assistTeam: null,
+                    isFastBreak: false,
+                    isSecondChance: false,
+                    isPaint: pendingShotInfo.zone.includes('paint')
+                };
+
+                fetch('/api/recordShot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(r => r.json())
+                .then(s => {
+                    updateScoreboard(s);
+                })
+                .catch(e => console.error('skipRebound recordShot error', e));
+            }
+
+            pendingShotInfo = null;
+            reboundContextTeam = null;
+            closeReboundDialog();
         }
 
         function recordRebound(team, playerNumber) {
@@ -1117,7 +1557,9 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
-                    }).then(r => r.json()).then(s => updateScoreboard(s)).catch(e => console.error('recordShot after rebound error', e));
+                    }).then(r => r.json()).then(s => {
+                        updateScoreboard(s);
+                    }).catch(e => console.error('recordShot after rebound error', e));
                 }
 
                 // Track if this is an offensive rebound (same team as the one that shot)
@@ -1252,6 +1694,10 @@
         function showEventDialog(eventType) {
             currentEventType = eventType;
             document.getElementById('event-title').textContent = eventType.charAt(0).toUpperCase() + eventType.slice(1);
+            const skipBtn = document.getElementById('event-skip-btn');
+            if (skipBtn) {
+                skipBtn.style.display = (eventType === 'steal' || eventType === 'block') ? 'block' : 'none';
+            }
             document.getElementById('event-dialog').style.display = 'block';
             document.getElementById('overlay').style.display = 'block';
         }
@@ -1420,6 +1866,8 @@
                 return;
             }
             const isSecond = !!ftIsSecond;
+            const reboundTeamForFT = ftTeam;
+            const lastWasMiss = ftResults[ftResults.length - 1] === false;
             for (let i = 0; i < ftResults.length; i++) {
                 const made = !!ftResults[i];
                 const payload = {
@@ -1439,35 +1887,64 @@
                 }
             }
             // refresh game state from server
-            fetch('/api/gameState').then(r => r.json()).then(s => updateScoreboard(s));
+            fetch('/api/gameState').then(r => r.json()).then(s => {
+                updateScoreboard(s);
+                // If the last free throw was missed, prompt for rebound selection
+                if (lastWasMiss && reboundTeamForFT) {
+                    showReboundDialogForFreeThrow(reboundTeamForFT);
+                }
+                refreshPbpIfVisible();
+            });
             closeFTResults();
             // reset ft state
             ftTeam = null; ftShooter = null; ftResults = []; ftIndex = 0; ftIsSecond = false;
         }
 
+        function skipEventPlayer() {
+            if (!currentEventType || !currentEventTeam) {
+                alert('Select a team before skipping the player.');
+                return;
+            }
+            recordEvent(currentEventType, currentEventTeam, null);
+        }
+
         function recordEvent(eventType, team, playerNumber) {
-            // Special handling when ballHandlerMode is enabled for steals:
-            // - If a steal is recorded and there is a current ball handler on the other team,
-            //   credit the previous handler with a turnover, credit the stealer with the steal,
-            //   and set the new ball handler to the stealer.
-            if (eventType === 'steal' && ballHandlerMode && currentBallHandler && currentBallHandler.team !== team) {
-                // credit the steal to the selected player
+            if (eventType === 'steal') {
+                const stealerTeam = team;
+                const stealerPlayer = playerNumber; // may be null when skipping
+                const turnoverTeam = (gameState && gameState.possessionTeam) || (currentBallHandler && currentBallHandler.team) || (stealerTeam === 'home' ? 'away' : 'home');
+                const turnoverPlayer = (currentBallHandler && currentBallHandler.player) || null;
+                const desc = stealerPlayer
+                    ? `Steal by ${formatPlayerLabel(stealerTeam, stealerPlayer)} (turnover ${formatPlayerLabel(turnoverTeam, turnoverPlayer)})`
+                    : `Turnover ${formatPlayerLabel(turnoverTeam, turnoverPlayer)} (no stealer logged)`;
+
                 fetch('/api/recordEvent', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ eventType: 'steal', team: team, player: playerNumber, isFastBreak: false })
-                }).then(r => r.json()).then(s => updateScoreboard(s)).catch(e => console.error(e));
-
-                // credit turnover to previous handler
-                fetch('/api/recordEvent', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ eventType: 'turnover', team: currentBallHandler.team, player: currentBallHandler.player, isFastBreak: false })
-                }).then(r => r.json()).then(s => updateScoreboard(s)).catch(e => console.error(e));
-
-                // set new ball handler to the stealer (possession switched)
-                setBallHandler(team, playerNumber);
-            } else {
+                    body: JSON.stringify({
+                        eventType: 'steal',
+                        team: stealerTeam,
+                        player: stealerPlayer,
+                        turnoverTeam,
+                        turnoverPlayer,
+                        stealByTeam: stealerPlayer ? stealerTeam : null,
+                        stealByPlayer: stealerPlayer || null,
+                        isFastBreak: false
+                    })
+                })
+                .then(r => r.json())
+                .then(s => {
+                    updateScoreboard(s);
+                    if (stealerPlayer && ballHandlerMode) {
+                        setBallHandler(stealerTeam, stealerPlayer);
+                    }
+                    refreshPbpIfVisible();
+                    closeEventDialog();
+                })
+                .catch(e => console.error(e));
+            } else if (eventType === 'block') {
+                // For blocks, record the block (optional player) and then show rebound dialog
+                const desc = playerNumber ? `Block by ${formatPlayerLabel(team, playerNumber)}` : `Block by ${team === 'home' ? 'Home' : 'Away'}`;
                 fetch('/api/recordEvent', {
                     method: 'POST',
                     headers: {
@@ -1481,14 +1958,58 @@
                     }),
                 })
                 .then(r => r.json())
-                .then(s => updateScoreboard(s))
+                .then(s => {
+                    updateScoreboard(s);
+                    refreshPbpIfVisible();
+                    closeEventDialog();
+                    // Show rebound dialog after block
+                    showReboundDialogForBlock(team);
+                })
                 .catch(e => console.error(e));
+            } else {
+                const desc = eventType === 'turnover'
+                    ? `Turnover by ${formatPlayerLabel(team, playerNumber)}`
+                    : `${eventType.charAt(0).toUpperCase() + eventType.slice(1)} by ${formatPlayerLabel(team, playerNumber)}`;
+                fetch('/api/recordEvent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        eventType: eventType,
+                        team: team,
+                        player: playerNumber,
+                        isFastBreak: false
+                    }),
+                })
+                .then(r => r.json())
+                .then(s => {
+                    updateScoreboard(s);
+                    refreshPbpIfVisible();
+                })
+                .catch(e => console.error(e));
+                
+                closeEventDialog();
             }
+        }
 
-            // If in ballHandlerMode and event was a turnover/steal that changed possession,
-            // ensure we clear/update handler highlight as appropriate. For steals we set
-            // the handler above; for manual turnovers, user may also set handler afterwards.
-            closeEventDialog();
+        function showReboundDialogForBlock(blockingTeam) {
+            // set context team for rebound selection (offense is opposite of blocker)
+            reboundContextTeam = blockingTeam === 'home' ? 'away' : 'home';
+            document.getElementById('rebound-dialog').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+            styleReboundButtons(reboundContextTeam);
+            selectReboundType('defense');
+        }
+
+        function showReboundDialogForFreeThrow(shootingTeam) {
+            // For missed last free throw, prompt rebound with offense = shooting team
+            reboundContextTeam = shootingTeam;
+            document.getElementById('rebound-dialog').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+            styleReboundButtons(shootingTeam);
+            // Default to defense since most FT misses are rebounded by defense
+            selectReboundType('defense');
         }
 
         function getZoneDescription(zoneId) {

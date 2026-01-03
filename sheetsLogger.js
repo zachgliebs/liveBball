@@ -27,11 +27,11 @@ async function initializeSheetsClient() {
     }
 }
 
-// Update an entire row (A:F) at a specific row number
+// Update an entire row (A:G) at a specific row number
 async function updateRow(spreadsheetId, sheetName, rowNumber, rowValues) {
     if (!sheetsClient) return false;
     try {
-        const range = `${sheetName}!A${rowNumber}:F${rowNumber}`;
+        const range = `${sheetName}!A${rowNumber}:G${rowNumber}`;
         console.log(`Updating row ${rowNumber} at range ${range} with:`, rowValues);
         const response = await sheetsClient.spreadsheets.values.update({
             spreadsheetId: spreadsheetId,
@@ -89,11 +89,14 @@ async function logShot(spreadsheetId, sheetName, shotData) {
         // Column 5: Second Chance (boolean - true/false, not string)
         const secondChanceBool = isSecondChance === true;
         
-        // Column 6: Paint (boolean - true/false, not string)
+        // Column 6: (placeholder)
+        const placeholder = '';
+
+        // Column 7: Paint (boolean - true/false, not string)
         const paintBool = isPaint === true;
 
             const values = [
-                [shooter, event, assister, fastBreakBool, secondChanceBool, paintBool]
+                [shooter, event, assister, fastBreakBool, secondChanceBool, placeholder, paintBool]
             ];
 
             // Validate event against allowed codes to avoid data-validation rejection
@@ -105,7 +108,7 @@ async function logShot(spreadsheetId, sheetName, shotData) {
             console.log('Writing shot row to Google Sheet:', values[0]);
             // Get the next empty row and write to it explicitly
             const nextRow = await getNextEmptyRow(spreadsheetId, sheetName);
-            const range = `${sheetName}!A${nextRow}:F${nextRow}`;
+            const range = `${sheetName}!A${nextRow}:G${nextRow}`;
             const response = await sheetsClient.spreadsheets.values.update({
                 spreadsheetId: spreadsheetId,
                 range: range,
@@ -137,40 +140,56 @@ async function logEvent(spreadsheetId, sheetName, eventData) {
     try {
         const {
             eventType,      // 'turnover', 'steal', 'block'
-            team,           // 'home' or 'away'
-            player,         // player number
-            isFastBreak     // true or false (only relevant for steals leading to scoring)
+            team,           // 'home' or 'away' (steal/block team)
+            player,         // player number (stealer/blocker/turnover player)
+            isFastBreak,    // true or false (only relevant for steals leading to scoring)
+            turnoverTeam,   // team that lost the ball (for steals)
+            turnoverPlayer, // player who lost the ball (for steals)
+            stealByTeam,    // team that made the steal (optional override)
+            stealByPlayer   // player who made the steal (optional override)
         } = eventData;
 
-        // Column 1: Player who caused event
-        const actor = formatPlayer(team, player);
-        
-        // Column 2: Event type (TO, STL, BLK)
+        // Column 1: actor (ball carrier for steals/turnovers, blocker for block)
+        let actorTeam = team;
+        let actorPlayer = player;
+        if (eventType === 'steal') {
+            actorTeam = turnoverTeam || (team === 'home' ? 'away' : 'home');
+            actorPlayer = turnoverPlayer || null;
+        }
+
+        const actor = actorPlayer ? formatPlayer(actorTeam, actorPlayer) : '';
+
+        // Column 2: Event type (TO for turnovers/steals, BLK for blocks)
         let eventCode;
-        if (eventType === 'turnover') eventCode = 'TO';
-        else if (eventType === 'steal') eventCode = 'STL';
+        if (eventType === 'turnover' || eventType === 'steal') eventCode = 'TO';
         else if (eventType === 'block') eventCode = 'BLK';
+
+        // Column 3: For steals, put the stealer here; otherwise empty
+        let assister = '';
+        if (eventType === 'steal' && stealByTeam && stealByPlayer) {
+            assister = formatPlayer(stealByTeam, stealByPlayer);
+        }
         
-        // Column 3: Empty for turnovers/steals/blocks
-        const assister = '';
-        
-        // Column 4: Fast Break (TRUE/FALSE - only if applicable)
-        const fastBreak = isFastBreak ? 'TRUE' : 'FALSE';
+        // Column 4: Fast Break (boolean)
+        const fastBreak = isFastBreak === true;
         
         // Column 5: Second Chance (FALSE for defensive events)
-        const secondChance = 'FALSE';
+        const secondChance = false;
         
-        // Column 6: Paint (TRUE/FALSE)
-        const paint = 'FALSE';
+        // Column 6: (placeholder)
+        const placeholder = '';
+        
+        // Column 7: Paint (FALSE)
+        const paint = false;
 
         const values = [
-            [actor, eventCode, assister, fastBreak, secondChance, paint]
+            [actor, eventCode, assister, fastBreak, secondChance, placeholder, paint]
         ];
 
             console.log('Writing event row to Google Sheet:', values[0]);
             // Get the next empty row and write to it explicitly
             const nextRow = await getNextEmptyRow(spreadsheetId, sheetName);
-            const range = `${sheetName}!A${nextRow}:F${nextRow}`;
+            const range = `${sheetName}!A${nextRow}:G${nextRow}`;
             const response = await sheetsClient.spreadsheets.values.update({
                 spreadsheetId: spreadsheetId,
                 range: range,
@@ -213,17 +232,20 @@ async function logFreeThrow(spreadsheetId, sheetName, ftData) {
         // Column 5: Second Chance (boolean false)
         const secondChanceBool = false;
 
-        // Column 6: Paint (boolean false)
+        // Column 6: (placeholder)
+        const placeholder = '';
+
+        // Column 7: Paint (boolean false)
         const paintBool = false;
 
         const values = [
-            [shooter, event, assister, fastBreakBool, secondChanceBool, paintBool]
+            [shooter, event, assister, fastBreakBool, secondChanceBool, placeholder, paintBool]
         ];
 
         console.log('Writing free throw row to Google Sheet:', values[0]);
         // Get the next empty row and write to it explicitly
         const nextRow = await getNextEmptyRow(spreadsheetId, sheetName);
-        const range = `${sheetName}!A${nextRow}:F${nextRow}`;
+        const range = `${sheetName}!A${nextRow}:G${nextRow}`;
         const response = await sheetsClient.spreadsheets.values.update({
             spreadsheetId: spreadsheetId,
             range: range,
@@ -272,35 +294,36 @@ module.exports = {
     logRebound,
     updateRow,
     findLastNonEmptyRow,
-    getNextEmptyRow
+    getNextEmptyRow,
+    fetchPlayByPlay
 };
 
 // Cache for the next empty row (reset on server restart)
 let cachedNextRow = null;
 
-// Find the first empty row by checking column H for "T" values, starting at row 2
+// Find the first empty row using column I markers (T = filled, F/blank = empty), starting at row 2
 async function findNextEmptyRow(spreadsheetId, sheetName) {
     if (!sheetsClient) return null;
     try {
-        const range = `${sheetName}!H:H`; // Get entire column H which has "T" for filled rows
+        const range = `${sheetName}!I:I`; // Column I holds T/F markers
         const response = await sheetsClient.spreadsheets.values.get({
             spreadsheetId: spreadsheetId,
             range: range
         });
         const rows = (response && response.data && response.data.values) || [];
         
-        // Starting at row 2 (index 1), find first row where H is not "T"
+        // Starting at row 2 (index 1), find first row where column I is not 'T'
         for (let i = 1; i < rows.length; i++) { // Start at index 1 (row 2)
             const row = rows[i];
             const cellValue = row && row[0] ? String(row[0]).trim() : '';
-            if (cellValue !== 'T') {
+            if (cellValue.toUpperCase() !== 'T') {
                 const emptyRow = i + 1; // convert to 1-based row number
                 console.log(`findNextEmptyRow: First empty row found at ${emptyRow}`);
                 return emptyRow;
             }
         }
         
-        // If all rows have "T", next empty is after the last row
+        // If all inspected rows are 'T', next empty is after the last row we saw
         const nextRow = rows.length + 1;
         console.log(`findNextEmptyRow: All rows filled, next empty row is ${nextRow}`);
         return nextRow;
@@ -324,4 +347,33 @@ async function getNextEmptyRow(spreadsheetId, sheetName) {
 async function findLastNonEmptyRow(spreadsheetId, sheetName, maxRows = 2000) {
     const nextEmpty = await findNextEmptyRow(spreadsheetId, sheetName);
     return nextEmpty ? nextEmpty - 1 : 1;
+}
+
+// Fetch recent play-by-play rows (A:G) with row numbers for editing.
+// Uses column I marker (T = filled) to include only populated rows.
+// Pulls all data rows starting at A2, trims empties, and applies an optional limit from the end.
+async function fetchPlayByPlay(spreadsheetId, sheetName, limit = null) {
+    if (!sheetsClient) return [];
+    try {
+        const range = `${sheetName}!A2:I`; // include marker column I
+        const response = await sheetsClient.spreadsheets.values.get({
+            spreadsheetId: spreadsheetId,
+            range: range
+        });
+        const rows = (response && response.data && response.data.values) || [];
+        const annotated = rows
+            .map((vals, idx) => ({ rowNumber: idx + 2, values: vals }))
+            .filter(r => {
+                if (!r.values) return false;
+                const marker = r.values[8]; // column I
+                return String(marker).trim().toUpperCase() === 'T';
+            });
+        if (limit && annotated.length > limit) {
+            return annotated.slice(annotated.length - limit);
+        }
+        return annotated;
+    } catch (err) {
+        console.error('Error fetching play-by-play:', err.message || err);
+        return [];
+    }
 }
