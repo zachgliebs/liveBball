@@ -16,6 +16,11 @@ const io = socketIo(server, {
     }
 });
 
+// File paths and admin config
+const USERS_FILE = path.join(__dirname, 'users.json');
+const ROSTERS_FILE = path.join(__dirname, 'rosters.json');
+const ADMIN_KEY = process.env.ADMIN_KEY || 'BlueGreenBullshit'; // Change in production
+
 // Google Sheets configuration
 const SPREADSHEET_ID = '12gFXKBy-Ywq3ibGHAm9yFN1Iglqy9zr5jbD8squxJCE';
 const SHEET_NAME = 'Entry';
@@ -62,12 +67,46 @@ function createInitialGameState() {
         lastMissedShot: null,
         gameTime: "00:00",
         period: "1ST HALF",
-        isGameRunning: true
+        isGameRunning: true,
+        setTeamRoster: function(teamKey, players) {
+            // Normalize players to include stat fields
+            this[teamKey].players = (players || []).map(p => ({
+                number: p.number,
+                name: p.name,
+                points: p.points || 0,
+                attempts: p.attempts || 0,
+                made: p.made || 0,
+                rebounds: p.rebounds || 0,
+                steals: p.steals || 0,
+                blocks: p.blocks || 0,
+                turnovers: p.turnovers || 0,
+                assists: p.assists || 0
+            }));
+            this[teamKey].activePlayers = Array(5).fill(null);
+            this[teamKey].shotStats = {
+                made: { two: 0, three: 0 },
+                missed: { two: 0, three: 0 }
+            };
+            this[teamKey].score = 0;
+        }
     };
 }
 
 // Game state
 let gameState = createInitialGameState();
+
+// Bootstrap saved rosters on server start (if present)
+const savedRosters = loadRosters();
+if (savedRosters.home) {
+    gameState.setTeamRoster('team1', savedRosters.home.players || savedRosters.home);
+    if (savedRosters.home.name) gameState.team1.name = savedRosters.home.name;
+    console.log('Loaded saved home roster');
+}
+if (savedRosters.away) {
+    gameState.setTeamRoster('team2', savedRosters.away.players || savedRosters.away);
+    if (savedRosters.away.name) gameState.team2.name = savedRosters.away.name;
+    console.log('Loaded saved away roster');
+}
 
 // Middleware
 app.use(cors({
@@ -85,10 +124,6 @@ app.get('/v1.html', checkAuth, (req, res) => {
 // Now serve static files
 app.use(express.static(__dirname));
 
-// Authentication setup
-const USERS_FILE = path.join(__dirname, 'users.json');
-const ADMIN_KEY = process.env.ADMIN_KEY || 'BlueGreenBullshit'; // Change in production
-
 function loadUsers() {
     try {
         const data = fs.readFileSync(USERS_FILE, 'utf8');
@@ -105,6 +140,31 @@ function saveUsers(data) {
         return true;
     } catch (err) {
         console.error('Error writing users file:', err);
+        return false;
+    }
+}
+
+function loadRosters() {
+    try {
+        if (!fs.existsSync(ROSTERS_FILE)) return { home: null, away: null };
+        const data = fs.readFileSync(ROSTERS_FILE, 'utf8');
+        const parsed = JSON.parse(data);
+        return {
+            home: parsed.home || null,
+            away: parsed.away || null
+        };
+    } catch (err) {
+        console.error('Error reading rosters file:', err);
+        return { home: null, away: null };
+    }
+}
+
+function saveRosters(rosters) {
+    try {
+        fs.writeFileSync(ROSTERS_FILE, JSON.stringify(rosters, null, 2), 'utf8');
+        return true;
+    } catch (err) {
+        console.error('Error writing rosters file:', err);
         return false;
     }
 }
@@ -213,39 +273,22 @@ app.get('/api/gameState', (req, res) => {
 });
 
 app.post('/api/loadRoster', (req, res) => {
-    const { team, players } = req.body;
+    const { team, players, teamName } = req.body;
     const teamKey = team === 'home' ? 'team1' : 'team2';
-    
-    // Reset team's players array and active players
-    // Normalize players to include stat fields
-    gameState[teamKey].players = players.map(p => ({
-        number: p.number,
-        name: p.name,
-        points: p.points || 0,
-        attempts: p.attempts || 0,
-        made: p.made || 0,
-        rebounds: p.rebounds || 0,
-        steals: p.steals || 0,
-        blocks: p.blocks || 0,
-        turnovers: p.turnovers || 0,
-        assists: p.assists || 0
-    }));
-    gameState[teamKey].activePlayers = Array(5).fill(null);
-    
-    // Reset team's shot stats
-    gameState[teamKey].shotStats = {
-        made: { two: 0, three: 0 },
-        missed: { two: 0, three: 0 }
-    };
-    
-    // Reset team's score
-    gameState[teamKey].score = 0;
+
+    gameState.setTeamRoster(teamKey, players);
+    if (teamName) gameState[teamKey].name = teamName;
 
     // Reset team touches for both teams on roster load to avoid stale data
     gameState.teamTouches.team1 = [];
     gameState.teamTouches.team2 = [];
     gameState.possessionTeam = null;
-    
+
+    // Persist roster to disk
+    const existing = loadRosters();
+    existing[team] = { name: teamName || gameState[teamKey].name, players };
+    saveRosters(existing);
+
     io.emit('gameState', gameState);
     res.json(gameState);
 });

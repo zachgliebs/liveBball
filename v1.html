@@ -844,6 +844,7 @@
         function loadRoster(team) {
             const textarea = document.getElementById(`${team}-roster`);
             const rosterText = textarea.value;
+            const teamName = document.getElementById(`${team}-team-name`).value.trim();
             const players = parseRoster(rosterText);
             
             if (players.length === 0) {
@@ -858,7 +859,8 @@
                 },
                 body: JSON.stringify({
                     team: team,
-                    players: players
+                    players: players,
+                    teamName: teamName || undefined
                 }),
             })
             .then(response => response.json())
