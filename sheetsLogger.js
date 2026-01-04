@@ -292,14 +292,66 @@ module.exports = {
     logEvent,
     logFreeThrow,
     logRebound,
+    clearSheetData,
     updateRow,
     findLastNonEmptyRow,
     getNextEmptyRow,
-    fetchPlayByPlay
+    fetchPlayByPlay,
+    resetRowCache
 };
 
 // Cache for the next empty row (reset on server restart)
 let cachedNextRow = null;
+
+// Clear all play-by-play values while keeping validation/dropdowns intact
+async function clearSheetData(spreadsheetId, sheetName, maxRows = 2000) {
+    if (!sheetsClient) return false;
+    try {
+        const topRow = 2;
+        const lastRow = Math.max(topRow, maxRows);
+
+        // 1) Clear text/number columns (A-D and H) but leave checkbox columns (E-G) untouched.
+        const clearRanges = [
+            `${sheetName}!A${topRow}:D${lastRow}`,
+            `${sheetName}!H${topRow}:H${lastRow}`
+        ];
+        console.log('Clearing ranges:', clearRanges.join(', '));
+        await sheetsClient.spreadsheets.values.batchClear({
+            spreadsheetId,
+            resource: { ranges: clearRanges }
+        });
+
+        // 2) Reset checkbox columns (E-G) to unchecked (FALSE) while keeping validation intact.
+        const checkboxRange = `${sheetName}!E${topRow}:G${lastRow}`;
+        const checkboxRows = Array.from({ length: lastRow - topRow + 1 }, () => ['FALSE', 'FALSE', 'FALSE']);
+        await sheetsClient.spreadsheets.values.update({
+            spreadsheetId,
+            range: checkboxRange,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: checkboxRows }
+        });
+
+        // 3) Reapply the marker formula in column I for each row (I2 = A2, I3 = A3, ...).
+        const markerRange = `${sheetName}!I${topRow}:I${lastRow}`;
+        const markerRows = Array.from({ length: lastRow - topRow + 1 }, (_, idx) => {
+            const rowNum = topRow + idx;
+            return [`=IF(ISBLANK(A${rowNum}),"F","T")`];
+        });
+        await sheetsClient.spreadsheets.values.update({
+            spreadsheetId,
+            range: markerRange,
+            valueInputOption: 'USER_ENTERED',
+            resource: { values: markerRows }
+        });
+
+        resetRowCache(2);
+        console.log(`Sheet cleared; next writes will start at row ${topRow}`);
+        return true;
+    } catch (err) {
+        console.error('Error clearing sheet data:', err.message || err);
+        return false;
+    }
+}
 
 // Find the first empty row using column I markers (T = filled, F/blank = empty), starting at row 2
 async function findNextEmptyRow(spreadsheetId, sheetName) {
@@ -341,6 +393,10 @@ async function getNextEmptyRow(spreadsheetId, sheetName) {
     const rowToUse = cachedNextRow;
     cachedNextRow++; // Increment for next call
     return rowToUse;
+}
+
+function resetRowCache(startRow = 2) {
+    cachedNextRow = startRow;
 }
 
 // Legacy function for compatibility

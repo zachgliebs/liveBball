@@ -28,60 +28,46 @@ if (ENABLE_SHEETS_LOGGING) {
     });
 }
 
+function createEmptyTeam(defaultName) {
+    return {
+        name: defaultName,
+        score: 0,
+        players: [],
+        activePlayers: Array(5).fill(null),
+        shotStats: {
+            made: { two: 0, three: 0 },
+            missed: { two: 0, three: 0 }
+        },
+        stats: {
+            rebounds: 0,
+            blocks: 0,
+            steals: 0,
+            turnovers: 0,
+            assists: 0
+        }
+    };
+}
+
+function createInitialGameState() {
+    return {
+        team1: createEmptyTeam("Team 1"),
+        team2: createEmptyTeam("Team 2"),
+        possessionTeam: null,
+        teamTouches: {
+            team1: [],
+            team2: []
+        },
+        lastSteal: null,
+        lastRebound: null,
+        lastMissedShot: null,
+        gameTime: "00:00",
+        period: "1ST HALF",
+        isGameRunning: true
+    };
+}
+
 // Game state
-let gameState = {
-    team1: {
-        name: "Team 1",
-        score: 0,
-        players: [],
-        activePlayers: Array(5).fill(null),
-        shotStats: {
-            made: { two: 0, three: 0 },
-            missed: { two: 0, three: 0 }
-        },
-        stats: {
-            rebounds: 0,
-            blocks: 0,
-            steals: 0,
-            turnovers: 0,
-            assists: 0
-        }
-    },
-    team2: {
-        name: "Team 2",
-        score: 0,
-        players: [],
-        activePlayers: Array(5).fill(null),
-        shotStats: {
-            made: { two: 0, three: 0 },
-            missed: { two: 0, three: 0 }
-        },
-        stats: {
-            rebounds: 0,
-            blocks: 0,
-            steals: 0,
-            turnovers: 0,
-            assists: 0
-        }
-    },
-    // Which team currently has possession ('home' | 'away' | null)
-    possessionTeam: null,
-    // Keep the last two players who touched the ball for each team after a
-    // possession switch. Useful for assist-crediting logic.
-    teamTouches: {
-        team1: [],
-        team2: []
-    },
-    // Track the most recent steal for fast break detection
-    // { team: 'home'|'away', player: number, timestamp: ms }
-    lastSteal: null,
-    // Track if a rebound was just recorded (for second chance points detection)
-    // { team: 'home'|'away', player: number, timestamp: ms }
-    lastRebound: null,
-    gameTime: "00:00",
-    period: "1ST HALF",
-    isGameRunning: true
-};
+let gameState = createInitialGameState();
 
 // Middleware
 app.use(cors({
@@ -558,6 +544,33 @@ app.post('/api/updatePlayer', (req, res) => {
     }
     io.emit('playerUpdate', gameState);
     res.json(gameState);
+});
+
+app.post('/api/resetGame', async (req, res) => {
+    let sheetCleared = false;
+    let sheetError = null;
+
+    if (ENABLE_SHEETS_LOGGING) {
+        try {
+            sheetCleared = await sheetsLogger.clearSheetData(SPREADSHEET_ID, SHEET_NAME);
+            if (!sheetCleared) {
+                sheetError = 'Sheet clear returned false; values may not have been cleared.';
+            }
+        } catch (err) {
+            sheetError = err.message || 'Failed to clear Google Sheet.';
+        }
+    } else if (typeof sheetsLogger.resetRowCache === 'function') {
+        sheetsLogger.resetRowCache(2);
+    }
+
+    gameState = createInitialGameState();
+    io.emit('gameState', gameState);
+
+    if (sheetError) {
+        return res.status(500).json({ error: sheetError, gameState, sheetCleared });
+    }
+
+    res.json({ ok: true, gameState, sheetCleared });
 });
 
 // Socket.io connection handling

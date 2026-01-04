@@ -26,6 +26,10 @@
             </div>
         </div>
 
+        <div class="d-flex justify-content-end gap-2 mb-3">
+            <button class="btn btn-outline-danger" id="reset-game-btn" onclick="resetGame()">Reset Game</button>
+        </div>
+
         <!-- Roster Management -->
         <div class="row mb-4 summary-section">
             <div class="col-md-6">
@@ -889,6 +893,63 @@
             }
             
             return players;
+        }
+
+        async function resetGame() {
+            const confirmed = confirm('Reset the game and clear sheet rows 2+? Scores, rosters, and stats will be cleared.');
+            if (!confirmed) return;
+
+            try {
+                const res = await fetch('/api/resetGame', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok || data.error) {
+                    throw new Error(data.error || 'Reset failed');
+                }
+
+                gameState = data.gameState;
+                clearClientStateAfterReset();
+                updateScoreboard(gameState);
+                updateActivePlayers(gameState);
+                renderPlayByPlay();
+                alert('Game reset. Logging will resume at row 2.');
+            } catch (err) {
+                console.error('Reset failed', err);
+                alert(`Reset failed: ${err.message}`);
+            }
+        }
+
+        function clearClientStateAfterReset() {
+            currentShotInfo = { team: null, zone: null, player: null };
+            pendingShotInfo = null;
+            currentBallHandler = null;
+            lastMissedShot = null;
+            reboundOccurred = false;
+            offensiveReboundTeam = null;
+            ballHandlerMode = false;
+            const handlerToggle = document.getElementById('ball-handler-toggle');
+            if (handlerToggle) handlerToggle.checked = false;
+            updateHandlerHighlight();
+
+            ['home', 'away'].forEach(team => {
+                const nameInput = document.getElementById(`${team}-team-name`);
+                const rosterInput = document.getElementById(`${team}-roster`);
+                if (nameInput) nameInput.value = '';
+                if (rosterInput) rosterInput.value = '';
+            });
+
+            if (Array.isArray(playByPlay)) playByPlay = [];
+            const list = document.getElementById('pbp-list');
+            if (list) list.innerHTML = '';
+            const empty = document.getElementById('pbp-empty');
+            if (empty) empty.style.display = 'block';
+
+            ['shot-dialog', 'rebound-dialog', 'assist-dialog', 'second-chance-dialog', 'event-dialog', 'ft-setup-dialog', 'ft-results-dialog', 'pbp-edit-modal']
+                .forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+            const overlayEl = document.getElementById('overlay');
+            if (overlayEl) overlayEl.style.display = 'none';
         }
 
         // Initialize roster management when page loads
