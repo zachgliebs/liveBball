@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,6 +9,7 @@
     <link href="styles.css" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
 </head>
+
 <body>
     <div class="container mt-4">
         <!-- Scoreboard Header -->
@@ -42,12 +44,15 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <input type="text" id="home-team-name" class="form-control mb-2" placeholder="Enter team name">
+                            <input type="text" id="home-team-name" class="form-control mb-2"
+                                placeholder="Enter team name">
                             <div class="d-flex align-items-center gap-2 mb-2">
                                 <label class="form-label mb-0 small" for="home-team-color">Team color</label>
-                                <input type="color" id="home-team-color" class="form-control form-control-color" value="#0d6efd" aria-label="Home team color">
+                                <input type="color" id="home-team-color" class="form-control form-control-color"
+                                    value="#0d6efd" aria-label="Home team color">
                             </div>
-                            <textarea id="home-roster" class="form-control" rows="5" placeholder="Enter roster (one player per line)&#10;Format: number lastname&#10;Example:&#10;23 James&#10;34 Durant"></textarea>
+                            <textarea id="home-roster" class="form-control" rows="5"
+                                placeholder="Enter roster (one player per line)&#10;Format: number lastname&#10;Example:&#10;23 James&#10;34 Durant"></textarea>
                         </div>
                         <div class="btn-group">
                             <button class="btn btn-primary" onclick="loadRoster('home')">Load Roster</button>
@@ -67,12 +72,15 @@
                     </div>
                     <div class="card-body">
                         <div class="mb-3">
-                            <input type="text" id="away-team-name" class="form-control mb-2" placeholder="Enter team name">
+                            <input type="text" id="away-team-name" class="form-control mb-2"
+                                placeholder="Enter team name">
                             <div class="d-flex align-items-center gap-2 mb-2">
                                 <label class="form-label mb-0 small" for="away-team-color">Team color</label>
-                                <input type="color" id="away-team-color" class="form-control form-control-color" value="#dc3545" aria-label="Away team color">
+                                <input type="color" id="away-team-color" class="form-control form-control-color"
+                                    value="#dc3545" aria-label="Away team color">
                             </div>
-                            <textarea id="away-roster" class="form-control" rows="5" placeholder="Enter roster (one player per line)&#10;Format: number lastname&#10;Example:&#10;23 James&#10;34 Durant"></textarea>
+                            <textarea id="away-roster" class="form-control" rows="5"
+                                placeholder="Enter roster (one player per line)&#10;Format: number lastname&#10;Example:&#10;23 James&#10;34 Durant"></textarea>
                         </div>
                         <div class="btn-group">
                             <button class="btn btn-primary" onclick="loadRoster('away')">Load Roster</button>
@@ -124,10 +132,12 @@
         </div>
 
         <!-- Game Event Buttons -->
-        <div class="game-events position-fixed" style="left: 20px; top: 50%; transform: translateY(-50%); width: 180px;">
+        <div class="game-events position-fixed"
+            style="left: 20px; top: 50%; transform: translateY(-50%); width: 180px;">
             <div class="mb-2">
                 <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="ball-handler-toggle" onchange="toggleBallHandlerMode(this.checked)">
+                    <input class="form-check-input" type="checkbox" id="ball-handler-toggle"
+                        onchange="toggleBallHandlerMode(this.checked)" checked>
                     <label class="form-check-label" for="ball-handler-toggle">Ball Handler Mode</label>
                 </div>
             </div>
@@ -140,7 +150,8 @@
         </div>
 
         <!-- Logout Button -->
-        <button class="btn btn-dark position-fixed" style="right: 20px; bottom: 20px;" onclick="logout()">Logout</button>
+        <button class="btn btn-dark position-fixed" style="right: 20px; bottom: 20px;"
+            onclick="logout()">Logout</button>
 
         <!-- Shot Dialog -->
         <div class="overlay" id="overlay"></div>
@@ -160,31 +171,38 @@
         </div>
 
         <!-- Rebound Dialog -->
-        <div class="dialog" id="rebound-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+        <div class="dialog" id="rebound-dialog"
+            style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
             <h4>Rebound</h4>
             <div class="btn-group w-100 mb-3">
-                <button class="btn btn-primary" id="rebound-offense-btn" onclick="selectReboundType('offense')">Offense</button>
-                <button class="btn btn-primary" id="rebound-defense-btn" onclick="selectReboundType('defense')">Defense</button>
+                <button class="btn btn-primary" id="rebound-offense-btn"
+                    onclick="selectReboundType('offense')">Offense</button>
+                <button class="btn btn-primary" id="rebound-defense-btn"
+                    onclick="selectReboundType('defense')">Defense</button>
             </div>
             <div id="rebound-players" class="d-grid gap-2 mb-3">
                 <!-- Players will be added dynamically -->
             </div>
-            <button type="button" class="btn btn-outline-secondary w-100 mb-2" onclick="skipRebound()">No rebound</button>
+            <button type="button" class="btn btn-outline-secondary w-100 mb-2" onclick="skipRebound()">No
+                rebound</button>
             <button type="button" class="btn btn-secondary w-100" onclick="closeReboundDialog()">Cancel</button>
         </div>
 
         <!-- Assist Dialog -->
-        <div class="dialog" id="assist-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+        <div class="dialog" id="assist-dialog"
+            style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
             <h4>Assist</h4>
             <p class="mb-3">Select the player who made the assist (or skip):</p>
             <div id="assist-players" class="d-grid gap-2 mb-3">
                 <!-- Players will be added dynamically -->
             </div>
-            <button type="button" class="btn btn-secondary w-100" onclick="closeAssistDialogAndShowSecondChance()">No Assist</button>
+            <button type="button" class="btn btn-secondary w-100" onclick="closeAssistDialogAndShowSecondChance()">No
+                Assist</button>
         </div>
 
         <!-- Second Chance Points Dialog -->
-        <div class="dialog" id="second-chance-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+        <div class="dialog" id="second-chance-dialog"
+            style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
             <h4>Second Chance Points</h4>
             <p class="mb-3">Was this second chance points?</p>
             <div class="btn-group w-100">
@@ -194,7 +212,8 @@
         </div>
 
         <!-- Event Dialog -->
-        <div class="dialog" id="event-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+        <div class="dialog" id="event-dialog"
+            style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
             <h4 id="event-title">Event</h4>
             <div class="btn-group w-100 mb-3">
                 <button class="btn btn-primary" onclick="selectEventTeam('home')">Home</button>
@@ -204,19 +223,23 @@
             <div id="event-players" class="d-grid gap-2 mb-3">
                 <!-- Players will be added dynamically -->
             </div>
-            <button id="event-skip-btn" type="button" class="btn btn-outline-secondary w-100 mb-2" style="display: none;" onclick="skipEventPlayer()">Skip stealer/blocker</button>
+            <button id="event-skip-btn" type="button" class="btn btn-outline-secondary w-100 mb-2"
+                style="display: none;" onclick="skipEventPlayer()">Skip stealer/blocker</button>
             <button type="button" class="btn btn-secondary w-100" onclick="closeEventDialog()">Cancel</button>
         </div>
 
         <!-- Free Throw Setup Dialog -->
-        <div class="dialog" id="ft-setup-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
+        <div class="dialog" id="ft-setup-dialog"
+            style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001;">
             <h4>Free Throws</h4>
             <p>Select shooter and number of shots.</p>
             <div class="mb-2">
                 <label class="form-label">Team</label>
                 <div>
-                    <button class="btn btn-outline-primary me-2" id="ft-home-btn" onclick="ftSelectTeam('home')">Home</button>
-                    <button class="btn btn-outline-primary" id="ft-away-btn" onclick="ftSelectTeam('away')">Away</button>
+                    <button class="btn btn-outline-primary me-2" id="ft-home-btn"
+                        onclick="ftSelectTeam('home')">Home</button>
+                    <button class="btn btn-outline-primary" id="ft-away-btn"
+                        onclick="ftSelectTeam('away')">Away</button>
                 </div>
             </div>
             <div class="mb-2">
@@ -242,7 +265,8 @@
         </div>
 
         <!-- Free Throw Results Dialog -->
-        <div class="dialog" id="ft-results-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001; width: 320px;">
+        <div class="dialog" id="ft-results-dialog"
+            style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001; width: 320px;">
             <h4>Free Throw Sequence</h4>
             <div id="ft-sequence" class="mb-3">
                 <!-- shots will be listed here -->
@@ -284,7 +308,8 @@
                     <h5 class="mb-0">Play by Play</h5>
                     <div class="d-flex align-items-center gap-2">
                         <small class="text-muted">Chronological</small>
-                        <button class="btn btn-sm btn-outline-primary" onclick="fetchPlayByPlayFromSheet()">Refresh</button>
+                        <button class="btn btn-sm btn-outline-primary"
+                            onclick="fetchPlayByPlayFromSheet()">Refresh</button>
                     </div>
                 </div>
                 <div class="card-body">
@@ -295,7 +320,8 @@
         </div>
 
         <!-- Play-by-Play Edit Modal -->
-        <div class="dialog" id="pbp-edit-modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001; width: 360px;">
+        <div class="dialog" id="pbp-edit-modal"
+            style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1001; width: 360px;">
             <h5 class="mb-3">Edit Play <span id="pbp-edit-row-label" class="text-muted"></span></h5>
             <div class="mb-2">
                 <label class="form-label">Column A (Player)</label>
@@ -487,7 +513,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Connect to WebSocket server
-        
+
         // Roster management functions
         function initializeRosterManagement() {
             // Load saved rosters into dropdowns
@@ -501,10 +527,10 @@
             initializeTabs();
 
             // Add change listeners to dropdowns
-            document.getElementById('home-saved-rosters').addEventListener('change', function() {
+            document.getElementById('home-saved-rosters').addEventListener('change', function () {
                 loadSavedRoster('home', this.value);
             });
-            document.getElementById('away-saved-rosters').addEventListener('change', function() {
+            document.getElementById('away-saved-rosters').addEventListener('change', function () {
                 loadSavedRoster('away', this.value);
             });
         }
@@ -512,10 +538,10 @@
         function updateSavedRosters(team) {
             const savedRosters = JSON.parse(localStorage.getItem(`${team}Rosters`) || '{}');
             const select = document.getElementById(`${team}-saved-rosters`);
-            
+
             // Clear existing options except the first one
             select.innerHTML = '<option value="">Select Saved Roster</option>';
-            
+
             // Add saved rosters to dropdown
             Object.keys(savedRosters).forEach(teamName => {
                 const option = document.createElement('option');
@@ -528,12 +554,12 @@
         function saveRoster(team) {
             const teamName = document.getElementById(`${team}-team-name`).value.trim();
             const rosterText = document.getElementById(`${team}-roster`).value.trim();
-            
+
             if (!teamName) {
                 alert('Please enter a team name');
                 return;
             }
-            
+
             if (!rosterText) {
                 alert('Please enter a roster');
                 return;
@@ -564,7 +590,7 @@
 
             const savedRosters = JSON.parse(localStorage.getItem(`${team}Rosters`) || '{}');
             const savedRoster = savedRosters[teamName];
-            
+
             if (savedRoster) {
                 document.getElementById(`${team}-team-name`).value = savedRoster.name;
                 document.getElementById(`${team}-roster`).value = savedRoster.rosterText;
@@ -575,7 +601,7 @@
         function deleteRoster(team) {
             const select = document.getElementById(`${team}-saved-rosters`);
             const teamName = select.value;
-            
+
             if (!teamName) {
                 alert('Please select a roster to delete');
                 return;
@@ -585,7 +611,7 @@
                 const savedRosters = JSON.parse(localStorage.getItem(`${team}Rosters`) || '{}');
                 delete savedRosters[teamName];
                 localStorage.setItem(`${team}Rosters`, JSON.stringify(savedRosters));
-                
+
                 // Update dropdown
                 updateSavedRosters(team);
                 alert(`Roster "${teamName}" deleted`);
@@ -720,7 +746,8 @@
 
         function formatPlayerLabel(team, player) {
             if (!player) return 'Unknown';
-            return `${team === 'home' ? 'H' : 'A'}${player}`;
+            const letter = team === 'home' ? teamLetters.home : teamLetters.away;
+            return `${letter}${player}`;
         }
 
         function buildShotDescription(payload, assistPlayer) {
@@ -738,13 +765,16 @@
 
         function formatPlayDescription(vals) {
             const [colA, colB, colC] = vals;
-            const team = colA && colA.startsWith('H') ? 'home' : (colA && colA.startsWith('A') ? 'away' : null);
-            const player = colA ? colA.substring(1) : '';
+            // Check if colA starts with home or away team letter
+            const startsWithHome = colA && colA.startsWith(teamLetters.home);
+            const startsWithAway = colA && colA.startsWith(teamLetters.away);
+            const team = startsWithHome ? 'home' : (startsWithAway ? 'away' : null);
+            const player = colA ? colA.substring(teamLetters.home.length) : '';
             const playerLabel = team ? formatPlayerLabel(team, player) : (colA || '');
             if (!colB) return `${playerLabel}`;
             const event = colB.toUpperCase();
-            if (['2YES','3YES','1YES'].includes(event)) return `${playerLabel} made ${event}`;
-            if (['2NO','3NO','1NO'].includes(event)) return `${playerLabel} missed ${event}`;
+            if (['2YES', '3YES', '1YES'].includes(event)) return `${playerLabel} made ${event}`;
+            if (['2NO', '3NO', '1NO'].includes(event)) return `${playerLabel} missed ${event}`;
             if (event === 'TO') return `${playerLabel} turnover`;
             if (event === 'STL') return `${playerLabel} steal`;
             if (event === 'BLK') return `${playerLabel} block`;
@@ -846,7 +876,7 @@
             const rosterText = textarea.value;
             const teamName = document.getElementById(`${team}-team-name`).value.trim();
             const players = parseRoster(rosterText);
-            
+
             if (players.length === 0) {
                 alert('Please enter a valid roster. Each line should contain a number and a last name.');
                 return;
@@ -863,21 +893,21 @@
                     teamName: teamName || undefined
                 }),
             })
-            .then(response => response.json())
-            .then(state => {
-                updateScoreboard(state);
-                alert(`${team.charAt(0).toUpperCase() + team.slice(1)} team roster loaded successfully!`);
-            })
-            .catch(error => {
-                alert('Error loading roster. Please try again.');
-                console.error('Error:', error);
-            });
+                .then(response => response.json())
+                .then(state => {
+                    updateScoreboard(state);
+                    alert(`${team.charAt(0).toUpperCase() + team.slice(1)} team roster loaded successfully!`);
+                })
+                .catch(error => {
+                    alert('Error loading roster. Please try again.');
+                    console.error('Error:', error);
+                });
         }
 
         function parseRoster(rosterText) {
             const players = [];
             const lines = rosterText.split('\n');
-            
+
             for (const line of lines) {
                 const trimmed = line.trim();
                 if (trimmed) {
@@ -893,7 +923,7 @@
                     }
                 }
             }
-            
+
             return players;
         }
 
@@ -957,6 +987,18 @@
         // Initialize roster management when page loads
         document.addEventListener('DOMContentLoaded', initializeRosterManagement);
         
+        // Store team letters (fetched from server)
+        let teamLetters = { home: 'H', away: 'A' };
+        
+        // Fetch team letters from server on page load
+        fetch('/api/teamLetters')
+            .then(r => r.json())
+            .then(letters => {
+                teamLetters = letters;
+                console.log('Team letters loaded:', letters);
+            })
+            .catch(err => console.error('Failed to fetch team letters:', err));
+
         // Socket.io connection (server will validate auth via cookies)
         const authToken = localStorage.getItem('authToken'); // For backwards compatibility
         const socket = io({
@@ -982,7 +1024,7 @@
         // Store shot info temporarily when waiting for a rebound selection
         let pendingShotInfo = null;
         // Ball handler mode state
-        let ballHandlerMode = false;
+        let ballHandlerMode = true;
         // Current ball handler selected by the user: { team: 'home'|'away', player: '23' }
         let currentBallHandler = null;
         // Track missed shots for second chance points detection
@@ -1043,13 +1085,13 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ team: team, player: playerNumber })
             })
-            .then(r => r.json())
-            .then(state => {
-                // server will also emit via socket; but set local handler now
-                currentBallHandler = { team: team, player: playerNumber };
-                updateHandlerHighlight();
-            })
-            .catch(err => console.error('setBallHandler error', err));
+                .then(r => r.json())
+                .then(state => {
+                    // server will also emit via socket; but set local handler now
+                    currentBallHandler = { team: team, player: playerNumber };
+                    updateHandlerHighlight();
+                })
+                .catch(err => console.error('setBallHandler error', err));
         }
 
         function updateHandlerHighlight() {
@@ -1070,6 +1112,11 @@
         let gameState = null;
 
         // Socket event listeners
+        socket.on('teamLetters', (letters) => {
+            teamLetters = letters;
+            console.log('Team letters updated from server:', letters);
+        });
+
         socket.on('gameState', (state) => {
             gameState = state;
             updateScoreboard(state);
@@ -1107,7 +1154,7 @@
             team2Score.textContent = state.team2.score;
             gameTime.textContent = state.gameTime;
             period.textContent = state.period;
-            
+
             // Update player stats and rosters
             updatePlayerStats('home', state.team1.players, state.team1.activePlayers);
             updatePlayerStats('away', state.team2.players, state.team2.activePlayers);
@@ -1122,7 +1169,7 @@
             // Update shooting stats
             const twoPointStats = `${teamState.shotStats.made.two}/${teamState.shotStats.made.two + teamState.shotStats.missed.two}`;
             const threePointStats = `${teamState.shotStats.made.three}/${teamState.shotStats.made.three + teamState.shotStats.missed.three}`;
-            
+
             // Calculate percentages
             const fgPercentage = calculatePercentage(
                 teamState.shotStats.made.two + teamState.shotStats.made.three,
@@ -1224,7 +1271,7 @@
         function updatePlayerStats(team, players, activePlayers) {
             const tableBody = document.querySelector(`#${team}-players-table tbody`);
             tableBody.innerHTML = '';
-            
+
             players.forEach(player => {
                 const row = createPlayerRow(team, player, activePlayers.includes(player.number));
                 tableBody.appendChild(row);
@@ -1242,7 +1289,7 @@
             // Update home team players
             const homePlayerCount = homeActivePlayers.length;
             const currentHomeSlots = homeContainer.querySelectorAll('.player-slot').length;
-            
+
             // Add slots if needed
             if (homePlayerCount > currentHomeSlots) {
                 for (let i = currentHomeSlots; i < homePlayerCount; i++) {
@@ -1251,11 +1298,11 @@
                     slot.setAttribute('data-team', 'home');
                     slot.setAttribute('data-index', i);
                     slot.textContent = '-';
-                    slot.addEventListener('click', function() { handlePlayerSlotClick(this); });
+                    slot.addEventListener('click', function () { handlePlayerSlotClick(this); });
                     homeContainer.appendChild(slot);
                 }
             }
-            
+
             // Remove extra slots if no longer needed
             const homeSlots = homeContainer.querySelectorAll('.player-slot');
             if (homePlayerCount < homeSlots.length) {
@@ -1263,7 +1310,7 @@
                     homeSlots[i].remove();
                 }
             }
-            
+
             // Update home team player numbers and styling
             homeContainer.querySelectorAll('.player-slot').forEach((slot, index) => {
                 slot.textContent = homeActivePlayers[index] || '-';
@@ -1277,7 +1324,7 @@
             // Update away team players
             const awayPlayerCount = awayActivePlayers.length;
             const currentAwaySlots = awayContainer.querySelectorAll('.player-slot').length;
-            
+
             // Add slots if needed
             if (awayPlayerCount > currentAwaySlots) {
                 for (let i = currentAwaySlots; i < awayPlayerCount; i++) {
@@ -1286,11 +1333,11 @@
                     slot.setAttribute('data-team', 'away');
                     slot.setAttribute('data-index', i);
                     slot.textContent = '-';
-                    slot.addEventListener('click', function() { handlePlayerSlotClick(this); });
+                    slot.addEventListener('click', function () { handlePlayerSlotClick(this); });
                     awayContainer.appendChild(slot);
                 }
             }
-            
+
             // Remove extra slots if no longer needed
             const awaySlots = awayContainer.querySelectorAll('.player-slot');
             if (awayPlayerCount < awaySlots.length) {
@@ -1298,7 +1345,7 @@
                     awaySlots[i].remove();
                 }
             }
-            
+
             // Update away team player numbers and styling
             awayContainer.querySelectorAll('.player-slot').forEach((slot, index) => {
                 slot.textContent = awayActivePlayers[index] || '-';
@@ -1324,10 +1371,10 @@
                 <td>${player.turnovers || 0}</td>
                 <td>${isActive ? '<span class="badge bg-success">On Court</span>' : '<span class="badge bg-secondary">Bench</span>'}</td>
                 <td>
-                    ${isActive ? 
-                        `<button class="btn btn-warning btn-sm" onclick="substitutePlayer('${team}', '${player.number}', 'out')">Sub Out</button>` :
-                        `<button class="btn btn-success btn-sm" onclick="substitutePlayer('${team}', '${player.number}', 'in')">Sub In</button>`
-                    }
+                    ${isActive ?
+                    `<button class="btn btn-warning btn-sm" onclick="substitutePlayer('${team}', '${player.number}', 'out')">Sub Out</button>` :
+                    `<button class="btn btn-success btn-sm" onclick="substitutePlayer('${team}', '${player.number}', 'in')">Sub In</button>`
+                }
                 </td>
             `;
             return row;
@@ -1335,7 +1382,7 @@
 
         function substitutePlayer(team, playerNumber, action) {
             const teamKey = team === 'home' ? 'team1' : 'team2';
-            
+
             fetch('/api/substitute', {
                 method: 'POST',
                 headers: {
@@ -1347,24 +1394,24 @@
                     action: action
                 }),
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Substitution failed');
-                }
-                return response.json();
-            })
-            .then(state => {
-                updateScoreboard(state);
-            })
-            .catch(error => {
-                alert(error.message);
-            });
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Substitution failed');
+                    }
+                    return response.json();
+                })
+                .then(state => {
+                    updateScoreboard(state);
+                })
+                .catch(error => {
+                    alert(error.message);
+                });
         }
 
         function handleZoneClick(zoneId) {
             currentShotInfo.zone = zoneId;
             selectedZone.textContent = getZoneDescription(zoneId);
-            
+
             // If Ball Handler Mode is active and a handler is selected,
             // use that player as the shooter so the user isn't prompted
             // to select a player manually.
@@ -1394,7 +1441,7 @@
                     currentShotInfo.player = playerNumber;
                     currentShotInfo.team = slot.dataset.team;
                     selectedPlayer.textContent = `#${playerNumber}`;
-            
+
                     if (currentShotInfo.zone) {
                         showShotDialog();
                     }
@@ -1475,20 +1522,20 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
-            .then(r => r.json())
-            .then(state => {
-                updateScoreboard(state);
-            })
-            .catch(e => console.error('finalizeMadeShot error', e))
-            .finally(() => {
-                // cleanup
-                pendingShotInfo = null;
-                currentAssist = null;
-                isFastBreak = false;
-                isSecondChance = false;
-                document.getElementById('assist-dialog').style.display = 'none';
-                document.getElementById('overlay').style.display = 'none';
-            });
+                .then(r => r.json())
+                .then(state => {
+                    updateScoreboard(state);
+                })
+                .catch(e => console.error('finalizeMadeShot error', e))
+                .finally(() => {
+                    // cleanup
+                    pendingShotInfo = null;
+                    currentAssist = null;
+                    isFastBreak = false;
+                    isSecondChance = false;
+                    document.getElementById('assist-dialog').style.display = 'none';
+                    document.getElementById('overlay').style.display = 'none';
+                });
         }
 
         function showReboundDialog() {
@@ -1526,16 +1573,21 @@
             const reboundTeam = type === 'offense' ? shooterTeam : (shooterTeam === 'home' ? 'away' : 'home');
             const players = document.getElementById('rebound-players');
             players.innerHTML = '';
-            
+
             // Get active players for the selected team
             const teamKey = reboundTeam === 'home' ? 'team1' : 'team2';
             const teamState = gameState[teamKey];
-            
+
             if (!teamState || !teamState.activePlayers) {
                 alert('No active players found');
                 return;
             }
-            
+            const teamBtn = document.createElement('button');
+            teamBtn.className = 'btn btn-outline-primary'; // mb-2 adds spacing
+            teamBtn.textContent = `Team Rebound`;
+            teamBtn.onclick = () => recordRebound(reboundTeam, null); // null = team rebound
+            players.appendChild(teamBtn);
+
             teamState.activePlayers.forEach(playerNumber => {
                 if (playerNumber) {
                     const player = teamState.players.find(p => p.number === playerNumber);
@@ -1571,11 +1623,11 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 })
-                .then(r => r.json())
-                .then(s => {
-                    updateScoreboard(s);
-                })
-                .catch(e => console.error('skipRebound recordShot error', e));
+                    .then(r => r.json())
+                    .then(s => {
+                        updateScoreboard(s);
+                    })
+                    .catch(e => console.error('skipRebound recordShot error', e));
             }
 
             pendingShotInfo = null;
@@ -1743,7 +1795,7 @@
         function recordAssist(team, playerNumber) {
             // Store the assist info for logging
             currentAssist = { team: team, player: playerNumber };
-            
+
             fetch('/api/recordAssist', {
                 method: 'POST',
                 headers: {
@@ -1784,15 +1836,15 @@
             currentEventTeam = team;
             const players = document.getElementById('event-players');
             players.innerHTML = '';
-            
+
             const teamKey = team === 'home' ? 'team1' : 'team2';
             const teamState = gameState[teamKey];
-            
+
             if (!teamState || !teamState.activePlayers) {
                 alert('No active players found');
                 return;
             }
-            
+
             teamState.activePlayers.forEach(playerNumber => {
                 if (playerNumber) {
                     const player = teamState.players.find(p => p.number === playerNumber);
@@ -1883,7 +1935,7 @@
                 div.className = 'd-flex align-items-center gap-2 mb-1';
                 const label = document.createElement('div');
                 label.style.width = '40px';
-                label.textContent = `#${i+1}`;
+                label.textContent = `#${i + 1}`;
                 const state = document.createElement('div');
                 state.textContent = r === null ? '—' : (r ? 'MAKE' : 'MISS');
                 state.id = `ft-state-${i}`;
@@ -1998,16 +2050,16 @@
                         isFastBreak: false
                     })
                 })
-                .then(r => r.json())
-                .then(s => {
-                    updateScoreboard(s);
-                    if (stealerPlayer && ballHandlerMode) {
-                        setBallHandler(stealerTeam, stealerPlayer);
-                    }
-                    refreshPbpIfVisible();
-                    closeEventDialog();
-                })
-                .catch(e => console.error(e));
+                    .then(r => r.json())
+                    .then(s => {
+                        updateScoreboard(s);
+                        if (stealerPlayer && ballHandlerMode) {
+                            setBallHandler(stealerTeam, stealerPlayer);
+                        }
+                        refreshPbpIfVisible();
+                        closeEventDialog();
+                    })
+                    .catch(e => console.error(e));
             } else if (eventType === 'block') {
                 // For blocks, record the block (optional player) and then show rebound dialog
                 const desc = playerNumber ? `Block by ${formatPlayerLabel(team, playerNumber)}` : `Block by ${team === 'home' ? 'Home' : 'Away'}`;
@@ -2023,15 +2075,15 @@
                         isFastBreak: false
                     }),
                 })
-                .then(r => r.json())
-                .then(s => {
-                    updateScoreboard(s);
-                    refreshPbpIfVisible();
-                    closeEventDialog();
-                    // Show rebound dialog after block
-                    showReboundDialogForBlock(team);
-                })
-                .catch(e => console.error(e));
+                    .then(r => r.json())
+                    .then(s => {
+                        updateScoreboard(s);
+                        refreshPbpIfVisible();
+                        closeEventDialog();
+                        // Show rebound dialog after block
+                        showReboundDialogForBlock(team);
+                    })
+                    .catch(e => console.error(e));
             } else {
                 const desc = eventType === 'turnover'
                     ? `Turnover by ${formatPlayerLabel(team, playerNumber)}`
@@ -2048,13 +2100,13 @@
                         isFastBreak: false
                     }),
                 })
-                .then(r => r.json())
-                .then(s => {
-                    updateScoreboard(s);
-                    refreshPbpIfVisible();
-                })
-                .catch(e => console.error(e));
-                
+                    .then(r => r.json())
+                    .then(s => {
+                        updateScoreboard(s);
+                        refreshPbpIfVisible();
+                    })
+                    .catch(e => console.error(e));
+
                 closeEventDialog();
             }
         }
@@ -2100,4 +2152,5 @@
         // End of script
     </script>
 </body>
+
 </html>

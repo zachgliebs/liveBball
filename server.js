@@ -28,9 +28,11 @@ const ENABLE_SHEETS_LOGGING = SPREADSHEET_ID !== null;
 
 // Initialize Google Sheets logger if configured
 if (ENABLE_SHEETS_LOGGING) {
-    sheetsLogger.initializeSheetsClient().catch(err => {
-        console.error('Failed to initialize Google Sheets:', err);
-    });
+    sheetsLogger.initializeSheetsClient()
+        .then(() => sheetsLogger.fetchTeamLetters(SPREADSHEET_ID))
+        .catch(err => {
+            console.error('Failed to initialize Google Sheets:', err);
+        });
 }
 
 function createEmptyTeam(defaultName) {
@@ -331,6 +333,16 @@ app.post('/api/recordRebound', async (req, res) => {
     // Update team stats
     gameState[teamKey].stats.rebounds++;
 
+     // Only update player stats if player is specified (not a team rebound)
+    if (player !== null) {
+        const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
+        if (playerIndex >= 0) {
+            if (!gameState[teamKey].players[playerIndex].rebounds) {
+                gameState[teamKey].players[playerIndex].rebounds = 0;
+            }
+            gameState[teamKey].players[playerIndex].rebounds++;
+        }
+    }
     // Update player stats
     const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
     if (playerIndex >= 0) {
@@ -354,9 +366,11 @@ app.post('/api/recordRebound', async (req, res) => {
             if (gameState.lastMissedShot && gameState.lastMissedShot.team === team && gameState.lastMissedShot.sheetRow) {
                 // Build values to write into the missed-shot row
                 const rowNum = gameState.lastMissedShot.sheetRow;
-                const shooter = gameState.lastMissedShot.shooter || (team === 'home' ? `H${gameState.lastMissedShot.player}` : `A${gameState.lastMissedShot.player}`);
+                const teamLetters = sheetsLogger.getTeamLetters();
+                const teamLetter = team === 'home' ? teamLetters.home : teamLetters.away;
+                const shooter = gameState.lastMissedShot.shooter || `${teamLetter}${gameState.lastMissedShot.player}`;
                 const event = gameState.lastMissedShot.event || '';
-                const rebounder = (team === 'home' ? 'H' : 'A') + player;
+                const rebounder = teamLetter + player;
                 const fastBreak = false;
                 const secondChance = false;
                 const placeholder = '';
@@ -616,9 +630,28 @@ app.post('/api/resetGame', async (req, res) => {
     res.json({ ok: true, gameState, sheetCleared });
 });
 
+// Get team letters from Setup sheet
+app.get('/api/teamLetters', (req, res) => {
+    const letters = sheetsLogger.getTeamLetters();
+    res.json(letters);
+});
+
 // Socket.io connection handling
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
     console.log('New client connected');
+    
+    // Refresh team letters from Setup sheet on each connection
+    if (ENABLE_SHEETS_LOGGING) {
+        try {
+            await sheetsLogger.fetchTeamLetters(SPREADSHEET_ID);
+            const letters = sheetsLogger.getTeamLetters();
+            socket.emit('teamLetters', letters);
+            console.log('Team letters sent to client:', letters);
+        } catch (err) {
+            console.error('Failed to fetch team letters on connection:', err);
+        }
+    }
+    
     socket.emit('gameState', gameState);
 
     socket.on('disconnect', () => {
