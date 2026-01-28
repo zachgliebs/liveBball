@@ -10,6 +10,10 @@ const SHEETS_API_KEY = process.env.SHEETS_API_KEY;
 
 let sheetsClient = null;
 
+// Store team letters (default to H and A, but can be overridden from Setup sheet)
+let homeTeamLetter = 'H';
+let awayTeamLetter = 'A';
+
 // Initialize the Google Sheets API client
 async function initializeSheetsClient() {
     try {
@@ -25,6 +29,41 @@ async function initializeSheetsClient() {
         console.error('Failed to initialize Google Sheets client:', error.message);
         return false;
     }
+}
+
+// Fetch team letters from Setup sheet (C2 = home, D2 = away)
+async function fetchTeamLetters(spreadsheetId) {
+    if (!sheetsClient) {
+        console.warn('Sheets client not initialized, using default letters H and A');
+        return { home: 'H', away: 'A' };
+    }
+    
+    try {
+        const range = 'Setup!C2:D2';
+        const response = await sheetsClient.spreadsheets.values.get({
+            spreadsheetId: spreadsheetId,
+            range: range
+        });
+        
+        const values = response?.data?.values?.[0] || [];
+        const home = values[0]?.trim() || 'H';
+        const away = values[1]?.trim() || 'A';
+        
+        homeTeamLetter = home;
+        awayTeamLetter = away;
+        
+        console.log(`Team letters loaded: Home='${home}', Away='${away}'`);
+        return { home, away };
+    } catch (error) {
+        console.error('Failed to fetch team letters from Setup sheet:', error.message);
+        console.log('Using default letters H and A');
+        return { home: 'H', away: 'A' };
+    }
+}
+
+// Get current team letters
+function getTeamLetters() {
+    return { home: homeTeamLetter, away: awayTeamLetter };
 }
 
 // Update an entire row (A:G) at a specific row number
@@ -51,7 +90,11 @@ async function updateRow(spreadsheetId, sheetName, rowNumber, rowValues) {
 
 // Format player identifier (H23, A34, etc)
 function formatPlayer(team, playerNumber) {
-    const teamLetter = team === 'home' ? 'H' : 'A';
+    const teamLetter = team === 'home' ? homeTeamLetter : awayTeamLetter;
+    // If playerNumber is null/undefined, return just the team letter
+    if (playerNumber === null || playerNumber === undefined) {
+        return teamLetter;
+    }
     return `${teamLetter}${playerNumber}`;
 }
 
@@ -288,6 +331,8 @@ async function logRebound(spreadsheetId, sheetName, reboundData) {
 
 module.exports = {
     initializeSheetsClient,
+    fetchTeamLetters,
+    getTeamLetters,
     logShot,
     logEvent,
     logFreeThrow,
