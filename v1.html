@@ -1585,7 +1585,11 @@
             const teamBtn = document.createElement('button');
             teamBtn.className = 'btn btn-outline-primary'; // mb-2 adds spacing
             teamBtn.textContent = `Team Rebound`;
+<<<<<<< HEAD
             teamBtn.onclick = () => recordRebound(reboundTeam, null); // null = team rebound
+=======
+            teamBtn.onclick = () => recordRebound(reboundingTeam, null); // null = team rebound
+>>>>>>> 1d7f4c418912125b5c795d815533decd8d24ff83
             players.appendChild(teamBtn);
 
             teamState.activePlayers.forEach(playerNumber => {
