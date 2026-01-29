@@ -333,7 +333,7 @@ app.post('/api/recordRebound', async (req, res) => {
     // Update team stats
     gameState[teamKey].stats.rebounds++;
 
-     // Only update player stats if player is specified (not a team rebound)
+    // Only update player stats if player is specified (not a team rebound)
     if (player !== null) {
         const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
         if (playerIndex >= 0) {
@@ -342,14 +342,6 @@ app.post('/api/recordRebound', async (req, res) => {
             }
             gameState[teamKey].players[playerIndex].rebounds++;
         }
-    }
-    // Update player stats
-    const playerIndex = gameState[teamKey].players.findIndex(p => p.number === player);
-    if (playerIndex >= 0) {
-        if (!gameState[teamKey].players[playerIndex].rebounds) {
-            gameState[teamKey].players[playerIndex].rebounds = 0;
-        }
-        gameState[teamKey].players[playerIndex].rebounds++;
     }
 
     // Track rebounds for second chance points detection
@@ -363,6 +355,8 @@ app.post('/api/recordRebound', async (req, res) => {
     // instead of appending a separate rebound row so the sheet shows: shooter,event,rebounder,...
     if (ENABLE_SHEETS_LOGGING) {
         try {
+            console.log('Rebound processing - lastMissedShot:', gameState.lastMissedShot);
+            console.log('Rebound team:', team, 'lastMissedShot.team:', gameState.lastMissedShot?.team);
             if (gameState.lastMissedShot && gameState.lastMissedShot.team === team && gameState.lastMissedShot.sheetRow) {
                 // Build values to write into the missed-shot row
                 const rowNum = gameState.lastMissedShot.sheetRow;
@@ -370,7 +364,7 @@ app.post('/api/recordRebound', async (req, res) => {
                 const teamLetter = team === 'home' ? teamLetters.home : teamLetters.away;
                 const shooter = gameState.lastMissedShot.shooter || `${teamLetter}${gameState.lastMissedShot.player}`;
                 const event = gameState.lastMissedShot.event || '';
-                const rebounder = teamLetter + player;
+                const rebounder = player !== null ? (teamLetter + player) : teamLetter;
                 const fastBreak = false;
                 const secondChance = false;
                 const placeholder = '';
@@ -387,6 +381,7 @@ app.post('/api/recordRebound', async (req, res) => {
                 // Rebounds are tracked in server state; we intentionally avoid creating
                 // separate 'REB' rows in the sheet to keep the play-by-play tidy.
                 console.log('Standalone rebound recorded server-side; not logged to sheet:', { team, player });
+                console.log('Reason - lastMissedShot null?', !gameState.lastMissedShot, 'team match?', gameState.lastMissedShot?.team !== team, 'no sheetRow?', !gameState.lastMissedShot?.sheetRow);
             }
         } catch (err) {
             console.error('Error handling rebound sheet update:', err);
@@ -543,12 +538,14 @@ app.post('/api/recordShot', async (req, res) => {
                 const m = String(result.updatedRange).match(/!A(\d+):G\d+/);
                 if (m && m[1]) {
                     const rowNum = parseInt(m[1], 10);
+                    const teamLetters = sheetsLogger.getTeamLetters();
+                    const teamLetter = team === 'home' ? teamLetters.home : teamLetters.away;
                     gameState.lastMissedShot = {
                         team: team,
                         player: player,
                         timestamp: Date.now(),
                         sheetRow: rowNum,
-                        shooter: (team === 'home' ? `H${player}` : `A${player}`),
+                        shooter: `${teamLetter}${player}`,
                         event: `${points === 2 ? '2NO' : '3NO'}`
                     };
                     console.log('Recorded lastMissedShot with sheetRow:', gameState.lastMissedShot);

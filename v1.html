@@ -1478,17 +1478,40 @@
             closeDialog();
 
             if (!made) {
-                // For misses, defer sending to the server until the rebound is selected
-                // so we can write a single row that includes the rebounder in Column C.
+                // For misses, send to server immediately so lastMissedShot is available on server
+                // The rebound handler will then update this row with the rebounder info
+                const payload = {
+                    team: pendingShotInfo.team,
+                    player: pendingShotInfo.player,
+                    zone: pendingShotInfo.zone,
+                    points: pendingShotInfo.points,
+                    made: false,
+                    assist: null,
+                    assistTeam: null,
+                    isFastBreak: false,
+                    isSecondChance: false,
+                    isPaint: pendingShotInfo.zone.includes('paint')
+                };
 
-                // Track the missed shot locally until rebound selection
+                fetch('/api/recordShot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                    .then(r => r.json())
+                    .then(state => {
+                        updateScoreboard(state);
+                    })
+                    .catch(e => console.error('recordShot miss error', e));
+
+                // Track locally for UI purposes
                 lastMissedShot = {
                     team: pendingShotInfo.team,
                     player: pendingShotInfo.player,
                     timestamp: Date.now()
                 };
 
-                // Show rebound dialog for missed shots; the rebound handler will submit the shot row
+                // Show rebound dialog for missed shots; the rebound handler will update the server row
                 showReboundDialog();
             } else {
                 // For made shots, wait for assist selection (and potential second chance)
@@ -1585,11 +1608,8 @@
             const teamBtn = document.createElement('button');
             teamBtn.className = 'btn btn-outline-primary'; // mb-2 adds spacing
             teamBtn.textContent = `Team Rebound`;
-<<<<<<< HEAD
             teamBtn.onclick = () => recordRebound(reboundTeam, null); // null = team rebound
-=======
-            teamBtn.onclick = () => recordRebound(reboundingTeam, null); // null = team rebound
->>>>>>> 1d7f4c418912125b5c795d815533decd8d24ff83
+            teamBtn.onclick = () => recordRebound(reboundTeam, null); // null = team rebound
             players.appendChild(teamBtn);
 
             teamState.activePlayers.forEach(playerNumber => {
@@ -1654,34 +1674,9 @@
                 // Update local scoreboard
                 updateScoreboard(state);
 
-                // If Ball Handler Mode is on, make the rebounder the new ball handler
-                if (ballHandlerMode) {
+                // If Ball Handler Mode is on, make the rebounder the new ball handler (only if specific player)
+                if (ballHandlerMode && playerNumber !== null) {
                     setBallHandler(team, playerNumber);
-                }
-
-                // If we have a pending missed shot, now submit the shot row including the rebounder
-                if (pendingShotInfo && pendingShotInfo.made === false) {
-                    // Build payload with the rebounder in the assist slot so Column C is populated
-                    const payload = {
-                        team: pendingShotInfo.team,
-                        player: pendingShotInfo.player,
-                        zone: pendingShotInfo.zone,
-                        points: pendingShotInfo.points,
-                        made: false,
-                        assist: playerNumber, // use assist column to store rebounder
-                        assistTeam: team,
-                        isFastBreak: false,
-                        isSecondChance: false,
-                        isPaint: pendingShotInfo.zone.includes('paint')
-                    };
-
-                    fetch('/api/recordShot', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    }).then(r => r.json()).then(s => {
-                        updateScoreboard(s);
-                    }).catch(e => console.error('recordShot after rebound error', e));
                 }
 
                 // Track if this is an offensive rebound (same team as the one that shot)
